@@ -41,6 +41,10 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
     return (company.phones || []).map((number) => ({ number, labels: [] as string[] }));
   }, [company.phones, company.phones_ext]);
 
+  const workStatus = (company.work_hours?.status || "").trim();
+  const workTime = (company.work_hours?.work_time || "").trim();
+  const workHoursText = [workStatus, workTime && !workStatus.includes(workTime) ? workTime : ""].filter(Boolean).join(" • ");
+
   const icon = company.primary_category_slug ? IBIZ_CATEGORY_ICONS[company.primary_category_slug] || "🏢" : "🏢";
 
   return (
@@ -100,7 +104,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
             <div className="flex items-start gap-2 mb-3 text-sm">
               <span className="text-[#820251] mt-0.5">⏰</span>
               <span className="text-gray-700 leading-tight line-clamp-2">
-                {company.work_hours.status || company.work_hours.work_time}
+                {workHoursText}
               </span>
             </div>
           )}
