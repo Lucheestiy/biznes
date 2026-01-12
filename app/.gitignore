@@ -42,3 +42,6 @@ next-env.d.ts
 public/data/ibiz/companies.jsonl
 public/data/ibiz/*.csv
 public/data/ibiz/*.tmp
+
+# ibiz logo proxy cache (generated)
+.cache/ibiz-logo-cache/

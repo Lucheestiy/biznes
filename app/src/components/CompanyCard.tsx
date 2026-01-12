@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import AIAssistant from "./AIAssistant";
@@ -31,6 +31,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
   const [messageModalOpen, setMessageModalOpen] = useState(false);
   const [phonesExpanded, setPhonesExpanded] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
 
   const favorite = isFavorite(company.id);
   const primaryWebsite = company.websites?.[0] || "";
@@ -48,7 +49,13 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
 
   const icon = company.primary_category_slug ? IBIZ_CATEGORY_ICONS[company.primary_category_slug] || "🏢" : "🏢";
   const logoUrl = (company.logo_url || "").trim();
+  const logoSrc = useMemo(() => (logoUrl ? `/api/ibiz/logo?u=${encodeURIComponent(logoUrl)}` : ""), [logoUrl]);
   const showLogo = Boolean(logoUrl) && !logoFailed;
+
+  useEffect(() => {
+    setLogoFailed(false);
+    setLogoLoaded(false);
+  }, [logoSrc]);
 
   return (
     <>
@@ -78,17 +85,26 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
 	        <div className="bg-gradient-to-r from-[#820251] to-[#6a0143] p-4 pr-12">
 	          <div className="flex items-start gap-3">
 	            <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-	              {showLogo ? (
-	                <img
-	                  src={logoUrl}
-	                  alt={company.name}
-	                  className="w-full h-full object-contain"
-	                  loading="lazy"
-	                  onError={() => setLogoFailed(true)}
-	                />
-	              ) : (
-	                <span className="text-white text-2xl">{icon}</span>
-	              )}
+                {showLogo ? (
+                  <div className="w-full h-full relative flex items-center justify-center">
+                    <span
+                      className={`text-white text-2xl transition-opacity duration-200 ${logoLoaded ? "opacity-0" : "opacity-100"}`}
+                    >
+                      {icon}
+                    </span>
+                    <img
+                      src={logoSrc}
+                      alt={company.name}
+                      className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 ${logoLoaded ? "opacity-100" : "opacity-0"}`}
+                      decoding="async"
+                      loading="lazy"
+                      onLoad={() => setLogoLoaded(true)}
+                      onError={() => setLogoFailed(true)}
+                    />
+                  </div>
+                ) : (
+                  <span className="text-white text-2xl">{icon}</span>
+                )}
 	            </div>
 	            <div className="min-w-0">
               <h3 className="font-bold text-white text-lg leading-tight">{company.name}</h3>

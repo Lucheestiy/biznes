@@ -34,11 +34,13 @@ export default function CompanyPage({ params }: PageProps) {
   const [data, setData] = useState<IbizCompanyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [logoFailed, setLogoFailed] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
     setLogoFailed(false);
+    setLogoLoaded(false);
     fetch(`/api/ibiz/company/${encodeURIComponent(id)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((resp: IbizCompanyResponse | null) => {
@@ -103,6 +105,7 @@ export default function CompanyPage({ params }: PageProps) {
 
   const icon = primaryCategory?.slug ? IBIZ_CATEGORY_ICONS[primaryCategory.slug] || "🏢" : "🏢";
   const logoUrl = (company.logo_url || "").trim();
+  const logoSrc = useMemo(() => (logoUrl ? `/api/ibiz/logo?u=${encodeURIComponent(logoUrl)}` : ""), [logoUrl]);
   const showLogo = Boolean(logoUrl) && !logoFailed;
 
   const phones: IbizPhoneExt[] = useMemo(() => {
@@ -162,13 +165,22 @@ export default function CompanyPage({ params }: PageProps) {
                 <div className="flex items-start gap-4">
                   <div className="w-20 h-20 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {showLogo ? (
-                      <img
-                        src={logoUrl}
-                        alt={company.name}
-                        className="w-full h-full object-contain"
-                        loading="lazy"
-                        onError={() => setLogoFailed(true)}
-                      />
+                      <div className="w-full h-full relative flex items-center justify-center">
+                        <span
+                          className={`text-4xl transition-opacity duration-200 ${logoLoaded ? "opacity-0" : "opacity-100"}`}
+                        >
+                          {icon}
+                        </span>
+                        <img
+                          src={logoSrc}
+                          alt={company.name}
+                          className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 ${logoLoaded ? "opacity-100" : "opacity-0"}`}
+                          decoding="async"
+                          loading="eager"
+                          onLoad={() => setLogoLoaded(true)}
+                          onError={() => setLogoFailed(true)}
+                        />
+                      </div>
                     ) : (
                       <span className="text-4xl">{icon}</span>
                     )}

@@ -12,6 +12,7 @@ services:
       - biznes-network
     volumes:
       - ./app/public/data/ibiz:/app/public/data/ibiz:ro
+      - ./app/.cache/ibiz-logo-cache:/tmp/ibiz-logo-cache
     expose:
       - "3000"
 
