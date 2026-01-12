@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { regions } from "@/data/regions";
 
 interface RegionContextType {
   selectedRegion: string | null;
@@ -12,15 +13,7 @@ const RegionContext = createContext<RegionContextType | undefined>(undefined);
 
 const REGION_STORAGE_KEY = "biznes_selected_region";
 
-const regionNames: Record<string, string> = {
-  minsk: "Минск",
-  "minsk-region": "Минская область",
-  brest: "Брестская область",
-  vitebsk: "Витебская область",
-  gomel: "Гомельская область",
-  grodno: "Гродненская область",
-  mogilev: "Могилёвская область",
-};
+const regionNames: Record<string, string> = Object.fromEntries(regions.map((r) => [r.slug, r.name]));
 
 export function RegionProvider({ children }: { children: ReactNode }) {
   const [selectedRegion, setSelectedRegionState] = useState<string | null>(null);

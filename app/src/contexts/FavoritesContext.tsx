@@ -3,11 +3,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 
 interface FavoritesContextType {
-  favorites: number[];
-  addFavorite: (companyId: number) => void;
-  removeFavorite: (companyId: number) => void;
-  isFavorite: (companyId: number) => boolean;
-  toggleFavorite: (companyId: number) => void;
+  favorites: string[];
+  addFavorite: (companyId: string) => void;
+  removeFavorite: (companyId: string) => void;
+  isFavorite: (companyId: string) => boolean;
+  toggleFavorite: (companyId: string) => void;
 }
 
 const FavoritesContext = createContext<FavoritesContextType | undefined>(undefined);
@@ -15,7 +15,7 @@ const FavoritesContext = createContext<FavoritesContextType | undefined>(undefin
 const FAVORITES_STORAGE_KEY = "biznes_favorites";
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const [favorites, setFavorites] = useState<number[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -24,7 +24,11 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
-          setFavorites(parsed);
+          if (parsed.every((v) => typeof v === "string")) {
+            setFavorites(parsed);
+          } else {
+            setFavorites([]);
+          }
         }
       } catch {
         // Invalid JSON, ignore
@@ -39,23 +43,23 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     }
   }, [favorites, isInitialized]);
 
-  const addFavorite = useCallback((companyId: number) => {
+  const addFavorite = useCallback((companyId: string) => {
     setFavorites((prev) => {
       if (prev.includes(companyId)) return prev;
       return [...prev, companyId];
     });
   }, []);
 
-  const removeFavorite = useCallback((companyId: number) => {
+  const removeFavorite = useCallback((companyId: string) => {
     setFavorites((prev) => prev.filter((id) => id !== companyId));
   }, []);
 
   const isFavorite = useCallback(
-    (companyId: number) => favorites.includes(companyId),
+    (companyId: string) => favorites.includes(companyId),
     [favorites]
   );
 
-  const toggleFavorite = useCallback((companyId: number) => {
+  const toggleFavorite = useCallback((companyId: string) => {
     setFavorites((prev) => {
       if (prev.includes(companyId)) {
         return prev.filter((id) => id !== companyId);

@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CompanyCard from "@/components/CompanyCard";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useRegion } from "@/contexts/RegionContext";
-import { companies, regions, regionMapping, businessCategories } from "@/data/mockData";
+import { regions, regionMapping } from "@/data/regions";
+import type { IbizCompanySummary } from "@/lib/ibiz/types";
 import Link from "next/link";
 
 export default function FavoritesPage() {
@@ -14,17 +16,47 @@ export default function FavoritesPage() {
   const { favorites } = useFavorites();
   const { selectedRegion, setSelectedRegion, regionName } = useRegion();
 
-  // Get favorite companies
-  let favoriteCompanies = companies.filter((c) => favorites.includes(c.id));
+  const [companies, setCompanies] = useState<IbizCompanySummary[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Filter by region if selected
-  if (selectedRegion) {
+  useEffect(() => {
+    if (!favorites || favorites.length === 0) {
+      setCompanies([]);
+      setIsLoading(false);
+      return;
+    }
+    let isMounted = true;
+    setIsLoading(true);
+    fetch(`/api/ibiz/companies?ids=${encodeURIComponent(favorites.join(","))}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((resp: { companies?: IbizCompanySummary[] } | null) => {
+        if (!isMounted) return;
+        setCompanies(resp?.companies || []);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setCompanies([]);
+        setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [favorites]);
+
+  const filteredCompanies = useMemo(() => {
+    if (!selectedRegion) return companies;
     const regionSlugs = regionMapping[selectedRegion] || [selectedRegion];
-    favoriteCompanies = favoriteCompanies.filter((c) => regionSlugs.includes(c.region));
-  }
+    return companies.filter((c) => regionSlugs.includes(c.region));
+  }, [companies, selectedRegion]);
 
-  // Get unique categories for filtering
-  const categoriesInFavorites = [...new Set(favoriteCompanies.map((c) => c.category))];
+  const categoriesInFavorites = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of filteredCompanies) {
+      if (c.primary_category_slug) set.add(c.primary_category_slug);
+    }
+    return Array.from(set);
+  }, [filteredCompanies]);
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-100">
@@ -59,24 +91,22 @@ export default function FavoritesPage() {
                 <button
                   onClick={() => setSelectedRegion(null)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    !selectedRegion
-                      ? "bg-[#820251] text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    !selectedRegion ? "bg-[#820251] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
                   {t("search.allRegions")}
                 </button>
-                {regions.map((region) => (
+                {regions.map((r) => (
                   <button
-                    key={region.slug}
-                    onClick={() => setSelectedRegion(region.slug)}
+                    key={r.slug}
+                    onClick={() => setSelectedRegion(r.slug)}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                      selectedRegion === region.slug
+                      selectedRegion === r.slug
                         ? "bg-[#820251] text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
-                    {t(`region.${region.slug}`)}
+                    {t(`region.${r.slug}`)}
                   </button>
                 ))}
               </div>
@@ -101,10 +131,12 @@ export default function FavoritesPage() {
                 href="/#catalog"
                 className="inline-block bg-[#820251] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#6a0143] transition-colors"
               >
-                Перейти в каталог
+                {t("nav.catalog")}
               </Link>
             </div>
-          ) : favoriteCompanies.length === 0 ? (
+          ) : isLoading ? (
+            <div className="bg-white rounded-lg p-10 text-center text-gray-500">{t("common.loading")}</div>
+          ) : filteredCompanies.length === 0 ? (
             <div className="bg-white rounded-lg p-10 text-center">
               <div className="text-6xl mb-4">🔍</div>
               <h3 className="text-xl font-bold text-gray-700 mb-2">{t("company.notFound")}</h3>
@@ -120,7 +152,7 @@ export default function FavoritesPage() {
             <>
               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <span className="w-1 h-6 bg-[#820251] rounded"></span>
-                {t("favorites.title")} ({favoriteCompanies.length})
+                {t("favorites.title")} ({filteredCompanies.length})
                 {selectedRegion && (
                   <span className="text-sm font-normal text-gray-500">
                     — {regionName}
@@ -132,16 +164,15 @@ export default function FavoritesPage() {
               {categoriesInFavorites.length > 1 && (
                 <div className="mb-6 flex flex-wrap gap-2">
                   {categoriesInFavorites.map((catSlug) => {
-                    const cat = businessCategories.find((c) => c.slug === catSlug);
-                    if (!cat) return null;
-                    const count = favoriteCompanies.filter((c) => c.category === catSlug).length;
+                    const anyCompany = filteredCompanies.find((c) => c.primary_category_slug === catSlug);
+                    const name = anyCompany?.primary_category_name || catSlug;
+                    const count = filteredCompanies.filter((c) => c.primary_category_slug === catSlug).length;
                     return (
                       <span
                         key={catSlug}
                         className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm text-gray-600 border border-gray-200"
                       >
-                        <span>{cat.icon}</span>
-                        <span>{cat.name}</span>
+                        <span>{name}</span>
                         <span className="text-gray-400">({count})</span>
                       </span>
                     );
@@ -150,7 +181,7 @@ export default function FavoritesPage() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {favoriteCompanies.map((company) => (
+                {filteredCompanies.map((company) => (
                   <CompanyCard key={company.id} company={company} showCategory />
                 ))}
               </div>
@@ -163,3 +194,4 @@ export default function FavoritesPage() {
     </div>
   );
 }
+

@@ -1,44 +1,57 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CompanyCard from "@/components/CompanyCard";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegion } from "@/contexts/RegionContext";
-import { businessCategories, companies, regions, regionMapping } from "@/data/mockData";
-import { notFound } from "next/navigation";
+import { regions } from "@/data/regions";
+import type { IbizRubricResponse } from "@/lib/ibiz/types";
+import { IBIZ_CATEGORY_ICONS } from "@/lib/ibiz/icons";
 
 interface PageProps {
-  params: Promise<{ category: string; subcategory: string }>;
+  params: Promise<{ category: string; rubric: string[] }>;
 }
 
 export default function SubcategoryPage({ params }: PageProps) {
-  const { category, subcategory } = use(params);
+  const { category, rubric } = use(params);
   const { t } = useLanguage();
   const { selectedRegion, setSelectedRegion, regionName } = useRegion();
 
-  const categoryData = businessCategories.find((c) => c.slug === category);
-  if (!categoryData) {
-    notFound();
-  }
+  const [data, setData] = useState<IbizRubricResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const subcategoryData = categoryData.subcategories.find((s) => s.slug === subcategory);
-  if (!subcategoryData) {
-    notFound();
-  }
+  const rubricPath = Array.isArray(rubric) ? rubric.join("/") : String(rubric || "");
 
-  // Filter by category and subcategory first
-  let filteredCompanies = companies.filter(
-    (c) => c.category === category && c.subcategory === subcategory
-  );
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
 
-  // Then filter by region if selected
-  if (selectedRegion) {
-    const regionSlugs = regionMapping[selectedRegion] || [selectedRegion];
-    filteredCompanies = filteredCompanies.filter((c) => regionSlugs.includes(c.region));
-  }
+    const rubricSlug = `${category}/${rubricPath}`;
+    const region = selectedRegion || "";
+    fetch(
+      `/api/ibiz/rubric?slug=${encodeURIComponent(rubricSlug)}&region=${encodeURIComponent(region)}&offset=0&limit=60`,
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((resp: IbizRubricResponse | null) => {
+        if (!isMounted) return;
+        setData(resp);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setData(null);
+        setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [category, rubricPath, selectedRegion]);
+
+  const icon = IBIZ_CATEGORY_ICONS[category] || "🏢";
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-100">
@@ -54,23 +67,26 @@ export default function SubcategoryPage({ params }: PageProps) {
               <Link href="/#catalog" className="hover:text-[#820251]">{t("nav.catalog")}</Link>
               <span>/</span>
               <Link href={`/catalog/${category}`} className="hover:text-[#820251]">
-                {t(`cat.${category}`)}
+                {data?.rubric?.category_name || category}
               </Link>
               <span>/</span>
-              <span className="text-[#820251] font-medium">{t(`subcat.${subcategory}`)}</span>
+              <span className="text-[#820251] font-medium">{data?.rubric?.name || rubricPath}</span>
             </div>
           </div>
         </div>
 
-        {/* Subcategory Header */}
+        {/* Rubric Header */}
         <div className="bg-gradient-to-r from-[#820251] to-[#5a0138] text-white py-10">
           <div className="container mx-auto px-4">
             <div className="flex items-center gap-4">
-              <span className="text-5xl">{categoryData.icon}</span>
+              <span className="text-5xl">{icon}</span>
               <div>
-                <h1 className="text-3xl font-bold">{t(`subcat.${subcategory}`)}</h1>
+                <h1 className="text-3xl font-bold">{data?.rubric?.name || rubricPath}</h1>
                 <p className="text-pink-200 mt-1">
-                  {t(`cat.${category}`)} → {t(`subcat.${subcategory}`)} • {filteredCompanies.length} {t("catalog.companies").toLowerCase()}
+                  {data?.rubric?.category_name || category}
+                  {" • "}
+                  {isLoading ? "…" : (data?.page?.total ?? 0)} {t("catalog.companies").toLowerCase()}
+                  {selectedRegion && ` • ${regionName}`}
                 </p>
               </div>
             </div>
@@ -85,24 +101,22 @@ export default function SubcategoryPage({ params }: PageProps) {
               <button
                 onClick={() => setSelectedRegion(null)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  !selectedRegion
-                    ? "bg-[#820251] text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  !selectedRegion ? "bg-[#820251] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 {t("search.allRegions")}
               </button>
-              {regions.map((region) => (
+              {regions.map((r) => (
                 <button
-                  key={region.slug}
-                  onClick={() => setSelectedRegion(region.slug)}
+                  key={r.slug}
+                  onClick={() => setSelectedRegion(r.slug)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedRegion === region.slug
+                    selectedRegion === r.slug
                       ? "bg-[#820251] text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  {t(`region.${region.slug}`)}
+                  {t(`region.${r.slug}`)}
                 </button>
               ))}
             </div>
@@ -113,7 +127,7 @@ export default function SubcategoryPage({ params }: PageProps) {
         <div className="container mx-auto py-10 px-4">
           <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
             <span className="w-1 h-6 bg-[#820251] rounded"></span>
-            {t("catalog.companies")} ({filteredCompanies.length})
+            {t("catalog.companies")} ({isLoading ? "…" : (data?.page?.total ?? 0)})
             {selectedRegion && (
               <span className="text-sm font-normal text-gray-500">
                 — {regionName}
@@ -121,13 +135,9 @@ export default function SubcategoryPage({ params }: PageProps) {
             )}
           </h2>
 
-          {filteredCompanies.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCompanies.map((company) => (
-                <CompanyCard key={company.id} company={company} />
-              ))}
-            </div>
-          ) : (
+          {isLoading ? (
+            <div className="bg-white rounded-lg p-10 text-center text-gray-500">{t("common.loading")}</div>
+          ) : !data || !data.companies || data.companies.length === 0 ? (
             <div className="bg-white rounded-lg p-10 text-center">
               <div className="text-6xl mb-4">🔍</div>
               <h3 className="text-xl font-bold text-gray-700 mb-2">{t("company.notFound")}</h3>
@@ -139,6 +149,12 @@ export default function SubcategoryPage({ params }: PageProps) {
                 {t("company.showAllRegions")}
               </button>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {data.companies.map((company) => (
+                <CompanyCard key={company.id} company={company} />
+              ))}
+            </div>
           )}
         </div>
 
@@ -148,7 +164,7 @@ export default function SubcategoryPage({ params }: PageProps) {
             href={`/catalog/${category}`}
             className="inline-flex items-center gap-2 text-[#820251] hover:underline"
           >
-            ← {t("catalog.backToCategory")} {t(`cat.${category}`)}
+            ← {t("catalog.backToCategory")} {data?.rubric?.category_name || category}
           </Link>
         </div>
       </main>

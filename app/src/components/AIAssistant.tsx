@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface AIAssistantProps {
   floating?: boolean;
   companyName?: string;
-  companyId?: number;
+  companyId?: string;
   isActive?: boolean;
 }
 

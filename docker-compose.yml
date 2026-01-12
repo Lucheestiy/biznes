@@ -7,8 +7,11 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      IBIZ_COMPANIES_JSONL_PATH: /app/public/data/ibiz/companies.jsonl
     networks:
       - biznes-network
+    volumes:
+      - ./app/public/data/ibiz:/app/public/data/ibiz:ro
     expose:
       - "3000"
 

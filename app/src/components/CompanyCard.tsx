@@ -1,42 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import AIAssistant from "./AIAssistant";
 import MessageModal from "./MessageModal";
-import { Company, businessCategories } from "@/data/mockData";
+import type { IbizCompanySummary } from "@/lib/ibiz/types";
+import { IBIZ_CATEGORY_ICONS } from "@/lib/ibiz/icons";
 
 interface CompanyCardProps {
-  company: Company;
+  company: IbizCompanySummary;
   showCategory?: boolean;
 }
 
+function displayUrl(raw: string): string {
+  const s = (raw || "").trim();
+  if (!s) return "";
+  try {
+    const u = new URL(s);
+    return u.hostname || s;
+  } catch {
+    return s.replace(/^https?:\/\//i, "").split("/")[0] || s;
+  }
+}
+
 export default function CompanyCard({ company, showCategory = false }: CompanyCardProps) {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [messageModalOpen, setMessageModalOpen] = useState(false);
 
-  const categoryData = businessCategories.find((c) => c.slug === company.category);
-  const subcategoryData = categoryData?.subcategories.find((s) => s.slug === company.subcategory);
-
   const favorite = isFavorite(company.id);
+  const primaryWebsite = company.websites?.[0] || "";
+  const primaryEmail = company.emails?.[0] || "";
+  const primaryPhone = company.phones?.[0] || company.phones_ext?.[0]?.number || "";
 
-  // Helper to get translated company data with fallback to original
-  const getCompanyData = (field: string, fallback: string) => {
-    const key = `company.${company.id}.${field}`;
-    const translated = t(key);
-    return translated !== key ? translated : fallback;
-  };
+  const phones = useMemo(() => {
+    if (company.phones_ext && company.phones_ext.length > 0) return company.phones_ext;
+    return (company.phones || []).map((number) => ({ number, labels: [] as string[] }));
+  }, [company.phones, company.phones_ext]);
 
-  const companyName = getCompanyData("name", company.name);
-  const companyAddress = getCompanyData("address", company.address);
-
-  // Generate Yandex Mail link
-  const getYandexMailLink = (email: string) => {
-    return `https://mail.yandex.ru/compose?to=${encodeURIComponent(email)}`;
-  };
+  const icon = company.primary_category_slug ? IBIZ_CATEGORY_ICONS[company.primary_category_slug] || "🏢" : "🏢";
 
   return (
     <>
@@ -62,14 +66,25 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
           </svg>
         </button>
 
-        {/* Header with company name */}
+        {/* Header */}
         <div className="bg-gradient-to-r from-[#820251] to-[#6a0143] p-4 pr-12">
-          <h3 className="font-bold text-white text-lg leading-tight">{companyName}</h3>
-          {showCategory && subcategoryData && (
-            <span className="inline-block mt-2 text-xs text-pink-200 bg-white/10 px-2 py-1 rounded">
-              {t(`subcat.${company.subcategory}`)}
-            </span>
-          )}
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {company.logo_url ? (
+                <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
+              ) : (
+                <span className="text-white text-2xl">{icon}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-bold text-white text-lg leading-tight">{company.name}</h3>
+              {showCategory && company.primary_rubric_name && (
+                <span className="inline-block mt-2 text-xs text-pink-200 bg-white/10 px-2 py-1 rounded">
+                  {company.primary_rubric_name}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Content */}
@@ -77,65 +92,71 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
           {/* Address */}
           <div className="flex items-start gap-2 mb-3 text-sm">
             <span className="text-[#820251] mt-0.5">📍</span>
-            <span className="text-gray-700 leading-tight">{companyAddress}</span>
+            <span className="text-gray-700 leading-tight">{company.address || company.city}</span>
           </div>
 
-          {/* Divider */}
+          {company.description && (
+            <div className="text-sm text-gray-600 line-clamp-2">{company.description}</div>
+          )}
+
           <div className="border-t border-gray-100 my-3"></div>
 
-          {/* Contact info - reordered: Site → Email → Phone */}
+          {/* Contacts */}
           <div className="space-y-2 text-sm mb-4">
-            {/* Website - first */}
-            {company.website && (
+            {primaryWebsite && (
               <div className="flex items-center gap-2">
                 <span className="text-[#820251] w-5 text-center">🌐</span>
                 <a
-                  href={`https://${company.website}`}
+                  href={primaryWebsite}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#820251] font-medium hover:underline truncate"
                 >
-                  {company.website}
+                  {displayUrl(primaryWebsite)}
                 </a>
               </div>
             )}
 
-            {/* Email - second (via Yandex Mail) */}
-            {company.email && (
+            {primaryEmail && (
               <div className="flex items-center gap-2">
                 <span className="text-[#820251] w-5 text-center">✉️</span>
                 <a
-                  href={getYandexMailLink(company.email)}
+                  href={`https://mail.yandex.ru/compose?to=${encodeURIComponent(primaryEmail)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-700 hover:text-[#820251] truncate"
                 >
-                  {company.email}
+                  {primaryEmail}
                 </a>
               </div>
             )}
 
-            {/* Phones - third (all phones) */}
-            <div className="flex items-start gap-2">
-              <span className="text-[#820251] w-5 text-center mt-0.5">📞</span>
-              <div className="flex flex-col gap-1">
-                {company.phones.map((phone, idx) => (
-                  <a
-                    key={idx}
-                    href={`tel:${phone}`}
-                    className="text-[#820251] font-medium hover:underline"
-                  >
-                    {phone}
-                  </a>
-                ))}
+            {phones.length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="text-[#820251] w-5 text-center mt-0.5">📞</span>
+                <div className="flex flex-col gap-1">
+                  {phones.slice(0, 3).map((p, idx) => (
+                    <a
+                      key={idx}
+                      href={`tel:${p.number}`}
+                      className="text-[#820251] font-medium hover:underline"
+                    >
+                      {p.number}
+                      {p.labels && p.labels.length > 0 && (
+                        <span className="text-gray-500 font-normal"> ({p.labels.join(", ")})</span>
+                      )}
+                    </a>
+                  ))}
+                  {phones.length > 3 && <div className="text-xs text-gray-400">+{phones.length - 3} ещё</div>}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Action buttons */}
+          {/* Actions */}
           <div className="flex flex-wrap gap-2">
             <a
-              href={`tel:${company.phones[0]}`}
+              href={primaryPhone ? `tel:${primaryPhone}` : undefined}
               className="flex-1 min-w-[100px] bg-green-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-green-700 transition-colors text-center"
             >
               {t("company.call")}
@@ -149,16 +170,9 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
           </div>
         </div>
 
-        {/* Footer with AI and Details */}
+        {/* Footer */}
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
-          {/* AI Assistant button - temporarily disabled */}
-          <AIAssistant
-            companyName={companyName}
-            companyId={company.id}
-            isActive={false}
-          />
-
-          {/* Details link */}
+          <AIAssistant companyName={company.name} companyId={company.id} isActive={false} />
           <Link
             href={`/company/${company.id}`}
             className="bg-[#820251] text-white px-4 py-2 rounded text-sm font-medium hover:bg-[#6a0143] transition-colors"
@@ -167,28 +181,15 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
           </Link>
         </div>
 
-        {/* Logo placeholder in bottom right */}
-        {company.logo ? (
-          <div className="absolute bottom-16 right-4 w-16 h-16 rounded bg-white shadow-sm flex items-center justify-center overflow-hidden">
-            <img src={company.logo} alt={company.name} className="w-full h-full object-contain" />
-          </div>
-        ) : (
-          <div className="absolute bottom-16 right-4 w-12 h-12 rounded bg-gray-100 flex items-center justify-center">
-            <span className="text-gray-300 text-xl">
-              {categoryData?.icon || "🏢"}
-            </span>
-          </div>
-        )}
       </div>
 
-      {/* Message Modal */}
       <MessageModal
         isOpen={messageModalOpen}
         onClose={() => setMessageModalOpen(false)}
-        companyName={companyName}
+        companyName={company.name}
         companyId={company.id}
-        email={company.email}
-        phone={company.phones[0]}
+        email={primaryEmail || undefined}
+        phone={primaryPhone || undefined}
         hasAI={false}
       />
     </>

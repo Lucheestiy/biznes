@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegion } from "@/contexts/RegionContext";
-import { regions, companies, businessCategories } from "@/data/mockData";
+import { regions } from "@/data/regions";
+import type { IbizSuggestResponse } from "@/lib/ibiz/types";
 
 interface SearchBarProps {
   variant?: "hero" | "compact";
@@ -31,74 +31,63 @@ export default function SearchBar({ variant = "hero" }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
-  // Generate suggestions based on query
-  const generateSuggestions = useCallback((searchQuery: string): SearchSuggestion[] => {
-    if (!searchQuery || searchQuery.length < 2) return [];
-
-    const query = searchQuery.toLowerCase();
-    const results: SearchSuggestion[] = [];
-
-    // Search in categories
-    businessCategories.forEach((cat) => {
-      if (cat.name.toLowerCase().includes(query)) {
-        results.push({
-          type: "category",
-          text: cat.name,
-          url: `/catalog/${cat.slug}`,
-          icon: cat.icon,
-          count: cat.subcategories.length,
-        });
-      }
-
-      // Search in subcategories
-      cat.subcategories.forEach((sub) => {
-        if (sub.name.toLowerCase().includes(query)) {
-          results.push({
-            type: "subcategory",
-            text: sub.name,
-            url: `/catalog/${cat.slug}/${sub.slug}`,
-            icon: cat.icon,
-            subtitle: cat.name,
-          });
-        }
-      });
-    });
-
-    // Search in companies
-    companies.forEach((company) => {
-      if (
-        company.name.toLowerCase().includes(query) ||
-        company.description.toLowerCase().includes(query) ||
-        (company.services && company.services.some((s) => s.toLowerCase().includes(query))) ||
-        (company.products && company.products.some((p) => p.toLowerCase().includes(query)))
-      ) {
-        const cat = businessCategories.find((c) => c.slug === company.category);
-        results.push({
-          type: "company",
-          text: company.name,
-          url: `/company/${company.id}`,
-          icon: cat?.icon || "🏢",
-          subtitle: company.address,
-        });
-      }
-    });
-
-    // Sort: categories first, then subcategories, then companies
-    // Limit to 8 suggestions
-    return results
-      .sort((a, b) => {
-        const order = { category: 0, subcategory: 1, company: 2 };
-        return order[a.type] - order[b.type];
-      })
-      .slice(0, 8);
-  }, []);
-
-  // Update suggestions when query changes
+  // Update suggestions when query/region changes
   useEffect(() => {
-    const newSuggestions = generateSuggestions(query);
-    setSuggestions(newSuggestions);
-    setSelectedIndex(-1);
-  }, [query, generateSuggestions]);
+    const q = query.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      setSelectedIndex(-1);
+      return;
+    }
+
+    const abort = new AbortController();
+    const region = selectedRegion || "";
+    fetch(`/api/ibiz/suggest?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}`, {
+      signal: abort.signal,
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: IbizSuggestResponse | null) => {
+        if (!data) return;
+        const mapped: SearchSuggestion[] = (data.suggestions || [])
+          .map((s) => {
+            if (s.type === "company") {
+              return {
+                type: "company" as const,
+                text: s.name,
+                url: s.url,
+                icon: s.icon || "🏢",
+                subtitle: s.subtitle,
+              };
+            }
+            if (s.type === "category") {
+              return {
+                type: "category" as const,
+                text: s.name,
+                url: s.url,
+                icon: s.icon || "🏢",
+                count: s.count,
+              };
+            }
+            return {
+              type: "subcategory" as const,
+              text: s.name,
+              url: s.url,
+              icon: s.icon || "🏢",
+              subtitle: s.category_name,
+              count: s.count,
+            };
+          })
+          .slice(0, 8);
+
+        setSuggestions(mapped);
+        setSelectedIndex(-1);
+      })
+      .catch(() => {
+        // ignore (abort/network)
+      });
+
+    return () => abort.abort();
+  }, [query, selectedRegion]);
 
   // Handle click outside to close suggestions
   useEffect(() => {

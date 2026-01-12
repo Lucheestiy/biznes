@@ -1,14 +1,15 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CompanyCard from "@/components/CompanyCard";
 import SearchBar from "@/components/SearchBar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegion } from "@/contexts/RegionContext";
-import { companies, regions, regionMapping, businessCategories } from "@/data/mockData";
+import { regions } from "@/data/regions";
+import type { IbizCompanySummary, IbizSearchResponse } from "@/lib/ibiz/types";
 import Link from "next/link";
 
 function SearchResults() {
@@ -18,37 +19,47 @@ function SearchResults() {
 
   const query = searchParams.get("q") || "";
 
-  // Filter companies by search query
-  let filteredCompanies = companies;
+  const [data, setData] = useState<IbizSearchResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  if (query) {
-    const lowerQuery = query.toLowerCase();
-    filteredCompanies = companies.filter((company) => {
-      return (
-        company.name.toLowerCase().includes(lowerQuery) ||
-        company.description.toLowerCase().includes(lowerQuery) ||
-        company.services?.some((s) => s.toLowerCase().includes(lowerQuery)) ||
-        company.products?.some((p) => p.toLowerCase().includes(lowerQuery))
-      );
-    });
-  }
-
-  // Filter by region if selected
-  if (selectedRegion) {
-    const regionSlugs = regionMapping[selectedRegion] || [selectedRegion];
-    filteredCompanies = filteredCompanies.filter((c) => regionSlugs.includes(c.region));
-  }
-
-  // Group results by category
-  const resultsByCategory = filteredCompanies.reduce((acc, company) => {
-    if (!acc[company.category]) {
-      acc[company.category] = [];
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setData(null);
+      setIsLoading(false);
+      return;
     }
-    acc[company.category].push(company);
-    return acc;
-  }, {} as Record<string, typeof companies>);
+    let isMounted = true;
+    setIsLoading(true);
+    const region = selectedRegion || "";
+    fetch(`/api/ibiz/search?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}&offset=0&limit=60`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((resp: IbizSearchResponse | null) => {
+        if (!isMounted) return;
+        setData(resp);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setData(null);
+        setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [query, selectedRegion]);
 
-  const categoriesWithResults = Object.keys(resultsByCategory);
+  const grouped = useMemo(() => {
+    const out: Record<string, { name: string; companies: IbizCompanySummary[] }> = {};
+    for (const c of data?.companies || []) {
+      const key = c.primary_category_slug || "other";
+      if (!out[key]) out[key] = { name: c.primary_category_name || "Другое", companies: [] };
+      out[key].companies.push(c);
+    }
+    return out;
+  }, [data]);
+
+  const categoriesWithResults = Object.keys(grouped);
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-100">
@@ -71,48 +82,49 @@ function SearchResults() {
               <button
                 onClick={() => setSelectedRegion(null)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  !selectedRegion
-                    ? "bg-[#820251] text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  !selectedRegion ? "bg-[#820251] text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 {t("search.allRegions")}
               </button>
-              {regions.map((region) => (
+              {regions.map((r) => (
                 <button
-                  key={region.slug}
-                  onClick={() => setSelectedRegion(region.slug)}
+                  key={r.slug}
+                  onClick={() => setSelectedRegion(r.slug)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedRegion === region.slug
+                    selectedRegion === r.slug
                       ? "bg-[#820251] text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
                 >
-                  {t(`region.${region.slug}`)}
+                  {t(`region.${r.slug}`)}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Search Results */}
+        {/* Results */}
         <div className="container mx-auto py-10 px-4">
-          {/* Query info */}
           {query && (
             <div className="mb-6">
               <p className="text-gray-600">
-                {t("search.resultsFor")}: <span className="font-semibold text-gray-800">«{query}»</span>
-                {selectedRegion && (
-                  <span className="text-gray-500"> — {regionName}</span>
-                )}
+                {t("search.results")}: <span className="font-semibold text-gray-800">«{query}»</span>
+                {selectedRegion && <span className="text-gray-500"> — {regionName}</span>}
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                {t("search.found")}: {filteredCompanies.length} {t("catalog.companies").toLowerCase()}
+                {t("search.found")}: {isLoading ? "…" : (data?.total ?? 0)} {t("catalog.companies").toLowerCase()}
               </p>
             </div>
           )}
 
-          {filteredCompanies.length === 0 ? (
+          {isLoading ? (
+            <div className="bg-white rounded-lg p-10 text-center text-gray-500">{t("common.loading")}</div>
+          ) : !query ? (
+            <div className="bg-white rounded-lg p-10 text-center text-gray-500">
+              {t("search.placeholder")}
+            </div>
+          ) : (data?.companies || []).length === 0 ? (
             <div className="bg-white rounded-lg p-10 text-center">
               <div className="text-6xl mb-4">🔍</div>
               <h3 className="text-xl font-bold text-gray-700 mb-2">{t("company.notFound")}</h3>
@@ -129,56 +141,41 @@ function SearchResults() {
                 href="/#catalog"
                 className="inline-block bg-[#820251] text-white px-6 py-3 rounded-lg font-semibold hover:bg-[#6a0143] transition-colors"
               >
-                Перейти в каталог
+                {t("nav.catalog")}
               </Link>
             </div>
           ) : (
             <div className="space-y-10">
-              {/* Categories summary */}
               {categoriesWithResults.length > 1 && (
                 <div className="flex flex-wrap gap-2 mb-6">
-                  {categoriesWithResults.map((catSlug) => {
-                    const cat = businessCategories.find((c) => c.slug === catSlug);
-                    if (!cat) return null;
-                    const count = resultsByCategory[catSlug].length;
-                    return (
-                      <a
-                        key={catSlug}
-                        href={`#category-${catSlug}`}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm text-gray-600 border border-gray-200 hover:border-[#820251] hover:text-[#820251] transition-colors"
-                      >
-                        <span>{cat.icon}</span>
-                        <span>{cat.name}</span>
-                        <span className="text-gray-400">({count})</span>
-                      </a>
-                    );
-                  })}
+                  {categoriesWithResults.map((catSlug) => (
+                    <a
+                      key={catSlug}
+                      href={`#category-${catSlug}`}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-white rounded-full text-sm text-gray-600 border border-gray-200 hover:border-[#820251] hover:text-[#820251] transition-colors"
+                    >
+                      <span>{grouped[catSlug]?.name || catSlug}</span>
+                      <span className="text-gray-400">({grouped[catSlug]?.companies.length || 0})</span>
+                    </a>
+                  ))}
                 </div>
               )}
 
-              {/* Results by category */}
-              {categoriesWithResults.map((catSlug) => {
-                const cat = businessCategories.find((c) => c.slug === catSlug);
-                if (!cat) return null;
-                const categoryCompanies = resultsByCategory[catSlug];
-
-                return (
-                  <div key={catSlug} id={`category-${catSlug}`}>
-                    <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                      <span className="text-2xl">{cat.icon}</span>
-                      <span>{cat.name}</span>
-                      <span className="text-sm font-normal text-gray-500">
-                        ({categoryCompanies.length})
-                      </span>
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {categoryCompanies.map((company) => (
-                        <CompanyCard key={company.id} company={company} showCategory />
-                      ))}
-                    </div>
+              {categoriesWithResults.map((catSlug) => (
+                <div key={catSlug} id={`category-${catSlug}`}>
+                  <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                    <span>{grouped[catSlug]?.name || catSlug}</span>
+                    <span className="text-sm font-normal text-gray-500">
+                      ({grouped[catSlug]?.companies.length || 0})
+                    </span>
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {grouped[catSlug].companies.map((company) => (
+                      <CompanyCard key={company.id} company={company} showCategory />
+                    ))}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -191,16 +188,18 @@ function SearchResults() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex flex-col font-sans bg-gray-100">
-        <div className="flex-grow flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-[#820251] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-500">Загрузка...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col font-sans bg-gray-100">
+          <div className="flex-grow flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 border-4 border-[#820251] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-gray-500">Загрузка...</p>
+            </div>
           </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <SearchResults />
     </Suspense>
   );

@@ -8,7 +8,7 @@ interface MessageModalProps {
   isOpen: boolean;
   onClose: () => void;
   companyName: string;
-  companyId: number;
+  companyId: string;
   email?: string;
   phone?: string;
   hasAI?: boolean;

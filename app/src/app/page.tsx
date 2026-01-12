@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SearchBar from "@/components/SearchBar";
@@ -8,10 +9,28 @@ import ServicesBlock from "@/components/ServicesBlock";
 import NewsBlock from "@/components/NewsBlock";
 import AIAssistant from "@/components/AIAssistant";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { businessCategories } from "@/data/mockData";
+import type { IbizCatalogCategory, IbizCatalogResponse } from "@/lib/ibiz/types";
 
 export default function Home() {
   const { t } = useLanguage();
+  const [catalog, setCatalog] = useState<IbizCatalogResponse | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch("/api/ibiz/catalog")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!isMounted) return;
+        setCatalog(data);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setCatalog(null);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-100">
@@ -69,17 +88,17 @@ export default function Home() {
             {t("catalog.title")}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {businessCategories.map((cat) => (
+            {(catalog?.categories || []).map((cat: IbizCatalogCategory) => (
               <Link
                 key={cat.slug}
                 href={`/catalog/${cat.slug}`}
                 className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-all text-center group border border-gray-100 hover:border-[#820251]"
               >
                 <span className="text-3xl block mb-2 group-hover:scale-110 transition-transform">
-                  {cat.icon}
+                  {cat.icon || "🏢"}
                 </span>
                 <span className="font-medium text-gray-700 text-sm group-hover:text-[#820251]">
-                  {t(`cat.${cat.slug}`)}
+                  {cat.name}
                 </span>
               </Link>
             ))}
