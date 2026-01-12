@@ -29,6 +29,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
   const { t } = useLanguage();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [messageModalOpen, setMessageModalOpen] = useState(false);
+  const [phonesExpanded, setPhonesExpanded] = useState(false);
 
   const favorite = isFavorite(company.id);
   const primaryWebsite = company.websites?.[0] || "";
@@ -95,6 +96,15 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
             <span className="text-gray-700 leading-tight">{company.address || company.city}</span>
           </div>
 
+          {(company.work_hours?.status || company.work_hours?.work_time) && (
+            <div className="flex items-start gap-2 mb-3 text-sm">
+              <span className="text-[#820251] mt-0.5">⏰</span>
+              <span className="text-gray-700 leading-tight line-clamp-2">
+                {company.work_hours.status || company.work_hours.work_time}
+              </span>
+            </div>
+          )}
+
           {company.description && (
             <div className="text-sm text-gray-600 line-clamp-2">{company.description}</div>
           )}
@@ -135,7 +145,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
               <div className="flex items-start gap-2">
                 <span className="text-[#820251] w-5 text-center mt-0.5">📞</span>
                 <div className="flex flex-col gap-1">
-                  {phones.slice(0, 3).map((p, idx) => (
+                  {(phonesExpanded ? phones : phones.slice(0, 3)).map((p, idx) => (
                     <a
                       key={idx}
                       href={`tel:${p.number}`}
@@ -147,7 +157,15 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
                       )}
                     </a>
                   ))}
-                  {phones.length > 3 && <div className="text-xs text-gray-400">+{phones.length - 3} ещё</div>}
+                  {phones.length > 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setPhonesExpanded((v) => !v)}
+                      className="text-left text-xs text-gray-400 hover:text-[#820251] hover:underline"
+                    >
+                      {phonesExpanded ? t("common.hide") : `+${phones.length - 3} ${t("common.more")}`}
+                    </button>
+                  )}
                 </div>
               </div>
             )}

@@ -138,6 +138,7 @@ function buildCompanySummary(company: IbizCompany, regionSlug: string | null): I
     address: company.address || "",
     city: company.city || "",
     region: regionSlug || "",
+    work_hours: company.work_hours || {},
     phones_ext: company.phones_ext || [],
     phones: company.phones || [],
     emails: company.emails || [],

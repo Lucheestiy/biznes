@@ -24,6 +24,10 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.addCompany": "Добавить организацию",
     "nav.favorites": "Избранное",
 
+    // Common
+    "common.more": "ещё",
+    "common.hide": "Скрыть",
+
     // Search
     "search.placeholder": "Название компании или услуга",
     "search.region": "Выбрать регион",
@@ -561,6 +565,10 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.about": "About",
     "nav.addCompany": "Add organization",
     "nav.favorites": "Favorites",
+
+    // Common
+    "common.more": "more",
+    "common.hide": "Hide",
 
     // Search
     "search.placeholder": "Company name or service",

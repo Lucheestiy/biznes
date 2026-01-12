@@ -58,6 +58,7 @@ export interface IbizCompanySummary {
   address: string;
   city: string;
   region: string;
+  work_hours: IbizWorkHours;
   phones_ext: IbizPhoneExt[];
   phones: string[];
   emails: string[];
@@ -140,4 +141,3 @@ export interface IbizSearchResponse {
   total: number;
   companies: IbizCompanySummary[];
 }
-
