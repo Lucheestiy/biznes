@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -25,6 +24,25 @@ function displayUrl(raw: string): string {
   }
 }
 
+function normalizeWebsiteHref(raw: string): string | null {
+  const s = (raw || "").trim();
+  if (!s) return null;
+  const candidate = s.split(/[\s,;]+/)[0] || "";
+  if (!candidate) return null;
+
+  try {
+    const u = new URL(candidate);
+    return u.protocol === "http:" || u.protocol === "https:" ? u.toString() : null;
+  } catch {
+    try {
+      const u = new URL(`https://${candidate}`);
+      return u.toString();
+    } catch {
+      return null;
+    }
+  }
+}
+
 export default function CompanyCard({ company, showCategory = false }: CompanyCardProps) {
   const { t } = useLanguage();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -35,6 +53,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
 
   const favorite = isFavorite(company.id);
   const primaryWebsite = company.websites?.[0] || "";
+  const primaryWebsiteHref = useMemo(() => normalizeWebsiteHref(primaryWebsite), [primaryWebsite]);
   const primaryEmail = company.emails?.[0] || "";
   const primaryPhone = company.phones?.[0] || company.phones_ext?.[0]?.number || "";
 
@@ -59,7 +78,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-lg transition-all overflow-hidden relative">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-lg transition-all overflow-hidden relative flex flex-col h-full">
         {/* Favorite button */}
         <button
           onClick={() => toggleFavorite(company.id)}
@@ -81,32 +100,32 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
           </svg>
         </button>
 
-	        {/* Header */}
-	        <div className="bg-gradient-to-r from-[#820251] to-[#6a0143] p-4 pr-12">
-	          <div className="flex items-start gap-3">
-	            <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-                {showLogo ? (
-                  <div className="w-full h-full relative flex items-center justify-center">
-                    <span
-                      className={`text-white text-2xl transition-opacity duration-200 ${logoLoaded ? "opacity-0" : "opacity-100"}`}
-                    >
-                      {icon}
-                    </span>
-                    <img
-                      src={logoSrc}
-                      alt={company.name}
-                      className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 ${logoLoaded ? "opacity-100" : "opacity-0"}`}
-                      decoding="async"
-                      loading="lazy"
-                      onLoad={() => setLogoLoaded(true)}
-                      onError={() => setLogoFailed(true)}
-                    />
-                  </div>
-                ) : (
-                  <span className="text-white text-2xl">{icon}</span>
-                )}
-	            </div>
-	            <div className="min-w-0">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#820251] to-[#6a0143] p-4 pr-12">
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {showLogo ? (
+                <div className="w-full h-full relative flex items-center justify-center">
+                  <span
+                    className={`text-white text-2xl transition-opacity duration-200 ${logoLoaded ? "opacity-0" : "opacity-100"}`}
+                  >
+                    {icon}
+                  </span>
+                  <img
+                    src={logoSrc}
+                    alt={company.name}
+                    className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 ${logoLoaded ? "opacity-100" : "opacity-0"}`}
+                    decoding="async"
+                    loading="lazy"
+                    onLoad={() => setLogoLoaded(true)}
+                    onError={() => setLogoFailed(true)}
+                  />
+                </div>
+              ) : (
+                <span className="text-white text-2xl">{icon}</span>
+              )}
+            </div>
+            <div className="min-w-0">
               <h3 className="font-bold text-white text-lg leading-tight">{company.name}</h3>
               {showCategory && company.primary_rubric_name && (
                 <span className="inline-block mt-2 text-xs text-pink-200 bg-white/10 px-2 py-1 rounded">
@@ -118,7 +137,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <div className="p-4 flex-1 flex flex-col">
           {/* Address */}
           <div className="flex items-start gap-2 mb-3 text-sm">
             <span className="text-[#820251] mt-0.5">📍</span>
@@ -142,16 +161,16 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
 
           {/* Contacts */}
           <div className="space-y-2 text-sm mb-4">
-            {primaryWebsite && (
+            {primaryWebsiteHref && (
               <div className="flex items-center gap-2">
                 <span className="text-[#820251] w-5 text-center">🌐</span>
                 <a
-                  href={primaryWebsite}
+                  href={primaryWebsiteHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[#820251] font-medium hover:underline truncate"
                 >
-                  {displayUrl(primaryWebsite)}
+                  {displayUrl(primaryWebsiteHref)}
                 </a>
               </div>
             )}
@@ -201,7 +220,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
           </div>
 
           {/* Actions */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mt-auto">
             <a
               href={primaryPhone ? `tel:${primaryPhone}` : undefined}
               className="flex-1 min-w-[100px] bg-green-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-green-700 transition-colors text-center"
@@ -220,12 +239,24 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
         {/* Footer */}
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
           <AIAssistant companyName={company.name} companyId={company.id} isActive={false} />
-          <Link
-            href={`/company/${company.id}`}
-            className="bg-[#820251] text-white px-4 py-2 rounded text-sm font-medium hover:bg-[#6a0143] transition-colors"
-          >
-            {t("company.details")}
-          </Link>
+          {primaryWebsiteHref ? (
+            <a
+              href={primaryWebsiteHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#820251] text-white px-4 py-2 rounded text-sm font-medium hover:bg-[#6a0143] transition-colors"
+            >
+              {t("company.details")}
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="bg-gray-200 text-gray-500 px-4 py-2 rounded text-sm font-medium cursor-not-allowed"
+            >
+              {t("company.details")}
+            </button>
+          )}
         </div>
 
       </div>
