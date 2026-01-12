@@ -30,6 +30,7 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
   const { isFavorite, toggleFavorite } = useFavorites();
   const [messageModalOpen, setMessageModalOpen] = useState(false);
   const [phonesExpanded, setPhonesExpanded] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   const favorite = isFavorite(company.id);
   const primaryWebsite = company.websites?.[0] || "";
@@ -46,6 +47,8 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
   const workHoursText = [workStatus, workTime && !workStatus.includes(workTime) ? workTime : ""].filter(Boolean).join(" • ");
 
   const icon = company.primary_category_slug ? IBIZ_CATEGORY_ICONS[company.primary_category_slug] || "🏢" : "🏢";
+  const logoUrl = (company.logo_url || "").trim();
+  const showLogo = Boolean(logoUrl) && !logoFailed;
 
   return (
     <>
@@ -71,17 +74,23 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
           </svg>
         </button>
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#820251] to-[#6a0143] p-4 pr-12">
-          <div className="flex items-start gap-3">
-            <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
-              {company.logo_url ? (
-                <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
-              ) : (
-                <span className="text-white text-2xl">{icon}</span>
-              )}
-            </div>
-            <div className="min-w-0">
+	        {/* Header */}
+	        <div className="bg-gradient-to-r from-[#820251] to-[#6a0143] p-4 pr-12">
+	          <div className="flex items-start gap-3">
+	            <div className="w-12 h-12 rounded bg-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+	              {showLogo ? (
+	                <img
+	                  src={logoUrl}
+	                  alt={company.name}
+	                  className="w-full h-full object-contain"
+	                  loading="lazy"
+	                  onError={() => setLogoFailed(true)}
+	                />
+	              ) : (
+	                <span className="text-white text-2xl">{icon}</span>
+	              )}
+	            </div>
+	            <div className="min-w-0">
               <h3 className="font-bold text-white text-lg leading-tight">{company.name}</h3>
               {showCategory && company.primary_rubric_name && (
                 <span className="inline-block mt-2 text-xs text-pink-200 bg-white/10 px-2 py-1 rounded">

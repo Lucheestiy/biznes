@@ -33,10 +33,12 @@ export default function CompanyPage({ params }: PageProps) {
   const [messageModalOpen, setMessageModalOpen] = useState(false);
   const [data, setData] = useState<IbizCompanyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
+    setLogoFailed(false);
     fetch(`/api/ibiz/company/${encodeURIComponent(id)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((resp: IbizCompanyResponse | null) => {
@@ -100,6 +102,8 @@ export default function CompanyPage({ params }: PageProps) {
   const primaryRubric = company.rubrics?.[0] ?? null;
 
   const icon = primaryCategory?.slug ? IBIZ_CATEGORY_ICONS[primaryCategory.slug] || "🏢" : "🏢";
+  const logoUrl = (company.logo_url || "").trim();
+  const showLogo = Boolean(logoUrl) && !logoFailed;
 
   const phones: IbizPhoneExt[] = useMemo(() => {
     if (company.phones_ext && company.phones_ext.length > 0) return company.phones_ext;
@@ -157,8 +161,14 @@ export default function CompanyPage({ params }: PageProps) {
               <div className="flex-1">
                 <div className="flex items-start gap-4">
                   <div className="w-20 h-20 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {company.logo_url ? (
-                      <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
+                    {showLogo ? (
+                      <img
+                        src={logoUrl}
+                        alt={company.name}
+                        className="w-full h-full object-contain"
+                        loading="lazy"
+                        onError={() => setLogoFailed(true)}
+                      />
                     ) : (
                       <span className="text-4xl">{icon}</span>
                     )}
@@ -420,4 +430,3 @@ export default function CompanyPage({ params }: PageProps) {
     </div>
   );
 }
-

@@ -129,6 +129,16 @@ function safeLower(s: string): string {
   return (s || "").toLowerCase();
 }
 
+function normalizeLogoUrl(raw: string): string {
+  const url = (raw || "").trim();
+  if (!url) return "";
+  const low = url.toLowerCase();
+  if (low.endsWith("/images/icons/og-icon.png")) return "";
+  if (low.includes("/images/logo/no-logo")) return "";
+  if (low.includes("/images/logo/no_logo")) return "";
+  return url;
+}
+
 function buildCompanySummary(company: IbizCompany, regionSlug: string | null): IbizCompanySummary {
   const primaryCategory = company.categories?.[0] ?? null;
   const primaryRubric = company.rubrics?.[0] ?? null;
@@ -238,6 +248,8 @@ async function loadStoreFrom(sourcePath: string, stat: fs.Stats): Promise<Store>
 
     const id = (company.source_id || "").trim();
     if (!id) continue;
+
+    company.logo_url = normalizeLogoUrl(company.logo_url || "");
 
     const regionSlug = normalizeRegionSlug(company.city || "", company.region || "", company.address || "");
     companiesById.set(id, company);
