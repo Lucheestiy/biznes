@@ -14,12 +14,11 @@ export const regions: Region[] = [
 ];
 
 export const regionMapping: Record<string, string[]> = {
-  minsk: ["minsk", "minsk-region"],
-  "minsk-region": ["minsk", "minsk-region"],
+  minsk: ["minsk"],
+  "minsk-region": ["minsk-region"],
   brest: ["brest"],
   vitebsk: ["vitebsk"],
   gomel: ["gomel"],
   grodno: ["grodno"],
   mogilev: ["mogilev"],
 };
-

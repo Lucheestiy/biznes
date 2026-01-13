@@ -1272,8 +1272,8 @@ export const companies: Company[] = [
 ];
 
 export const regionMapping: { [key: string]: string[] } = {
-  minsk: ["minsk", "minsk-region"],
-  "minsk-region": ["minsk", "minsk-region"],
+  minsk: ["minsk"],
+  "minsk-region": ["minsk-region"],
   brest: ["brest"],
   vitebsk: ["vitebsk"],
   gomel: ["gomel"],

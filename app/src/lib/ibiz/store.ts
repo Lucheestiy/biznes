@@ -17,8 +17,8 @@ import type {
 import { IBIZ_CATEGORY_ICONS } from "./icons";
 
 const REGION_ALIAS: Record<string, string[]> = {
-  minsk: ["minsk", "minsk-region"],
-  "minsk-region": ["minsk", "minsk-region"],
+  minsk: ["minsk"],
+  "minsk-region": ["minsk-region"],
   brest: ["brest"],
   vitebsk: ["vitebsk"],
   gomel: ["gomel"],
@@ -73,18 +73,8 @@ function regionSlugFromPostalCode(address: string): string | null {
 function normalizeRegionSlug(city: string, region: string, address: string): string | null {
   const cityLow = (city || "").toLowerCase();
   const regionLow = (region || "").toLowerCase();
+  const addressLow = (address || "").toLowerCase();
 
-  const fromPostal = regionSlugFromPostalCode(address || "");
-  if (fromPostal) return fromPostal;
-
-  const looksLikeDistrict = (s: string): boolean => {
-    const v = (s || "").toLowerCase();
-    return v.includes("р-н") || v.includes("район") || v.includes("обл") || v.includes("область");
-  };
-
-  if (cityLow.includes("минск")) return looksLikeDistrict(cityLow) ? "minsk-region" : "minsk";
-
-  if (regionLow.includes("минск")) return looksLikeDistrict(regionLow) ? "minsk-region" : "minsk";
   if (regionLow.includes("брест")) return "brest";
   if (regionLow.includes("витеб")) return "vitebsk";
   if (regionLow.includes("гомел")) return "gomel";
@@ -96,6 +86,33 @@ function normalizeRegionSlug(city: string, region: string, address: string): str
   if (cityLow.includes("гомел")) return "gomel";
   if (cityLow.includes("гродн")) return "grodno";
   if (cityLow.includes("могил")) return "mogilev";
+
+  const looksLikeDistrict = (s: string): boolean => {
+    const v = (s || "").toLowerCase();
+    return v.includes("р-н") || v.includes("район") || v.includes("обл") || v.includes("область");
+  };
+
+  const minskDistrictRe = /минск(?:ий|ого|ому|ом)?\s*(?:р-н|район)/i;
+  const minskOblastRe = /минск(?:ая|ой|ую|ом)?\s*(?:обл\.?|область)/i;
+
+  const isMinskRegion =
+    minskDistrictRe.test(cityLow) ||
+    minskOblastRe.test(cityLow) ||
+    minskDistrictRe.test(regionLow) ||
+    minskOblastRe.test(regionLow) ||
+    minskDistrictRe.test(addressLow) ||
+    minskOblastRe.test(addressLow) ||
+    (cityLow.includes("минск") && looksLikeDistrict(cityLow)) ||
+    (regionLow.includes("минск") && looksLikeDistrict(regionLow));
+
+  if (isMinskRegion) return "minsk-region";
+
+  const fromPostal = regionSlugFromPostalCode(address || "");
+  if (fromPostal) return fromPostal;
+
+  if (cityLow.includes("минск")) return "minsk";
+
+  if (regionLow.includes("минск")) return "minsk";
 
   return null;
 }
