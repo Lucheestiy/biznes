@@ -9,6 +9,7 @@ import ServicesBlock from "@/components/ServicesBlock";
 import NewsBlock from "@/components/NewsBlock";
 import AIAssistant from "@/components/AIAssistant";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { regions } from "@/data/regions";
 import type { IbizCatalogCategory, IbizCatalogResponse } from "@/lib/ibiz/types";
 
 export default function Home() {
@@ -31,6 +32,11 @@ export default function Home() {
       isMounted = false;
     };
   }, []);
+
+  const formatCount = (value: number | null | undefined): string => {
+    if (typeof value !== "number" || !Number.isFinite(value)) return "…";
+    return new Intl.NumberFormat().format(value);
+  };
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-100">
@@ -66,15 +72,19 @@ export default function Home() {
             {/* Quick Stats */}
             <div className="flex justify-center gap-8 mt-10 text-sm">
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">12 500+</div>
+                <div className="text-2xl font-bold text-yellow-400">
+                  {formatCount(catalog?.stats?.companies_total)}
+                </div>
                 <div className="text-pink-200">{t("stats.companies")}</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">150+</div>
+                <div className="text-2xl font-bold text-yellow-400">
+                  {formatCount(catalog?.stats?.categories_total)}
+                </div>
                 <div className="text-pink-200">{t("stats.categories")}</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">7</div>
+                <div className="text-2xl font-bold text-yellow-400">{formatCount(regions.length)}</div>
                 <div className="text-pink-200">{t("stats.regions")}</div>
               </div>
             </div>

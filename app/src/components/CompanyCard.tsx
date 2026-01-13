@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -126,7 +127,15 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
               )}
             </div>
             <div className="min-w-0">
-              <h3 className="font-bold text-white text-lg leading-tight">{company.name}</h3>
+              <h3 className="font-bold text-white text-lg leading-tight">
+                {company.name}
+                {company.source === "belarusinfo" && (
+                  <span
+                    aria-hidden
+                    className="ml-2 inline-block w-2 h-2 rounded-full bg-white/40 align-middle"
+                  />
+                )}
+              </h3>
               {showCategory && company.primary_rubric_name && (
                 <span className="inline-block mt-2 text-xs text-pink-200 bg-white/10 px-2 py-1 rounded">
                   {company.primary_rubric_name}
@@ -239,24 +248,12 @@ export default function CompanyCard({ company, showCategory = false }: CompanyCa
         {/* Footer */}
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
           <AIAssistant companyName={company.name} companyId={company.id} isActive={false} />
-          {primaryWebsiteHref ? (
-            <a
-              href={primaryWebsiteHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-[#820251] text-white px-4 py-2 rounded text-sm font-medium hover:bg-[#6a0143] transition-colors"
-            >
-              {t("company.details")}
-            </a>
-          ) : (
-            <button
-              type="button"
-              disabled
-              className="bg-gray-200 text-gray-500 px-4 py-2 rounded text-sm font-medium cursor-not-allowed"
-            >
-              {t("company.details")}
-            </button>
-          )}
+          <Link
+            href={`/company/${encodeURIComponent(company.id)}`}
+            className="bg-[#820251] text-white px-4 py-2 rounded text-sm font-medium hover:bg-[#6a0143] transition-colors"
+          >
+            {t("company.details")}
+          </Link>
         </div>
 
       </div>

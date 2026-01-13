@@ -29,7 +29,7 @@ export interface IbizCompanyExtra {
 }
 
 export interface IbizCompany {
-  source: "ibiz";
+  source: "ibiz" | "belarusinfo";
   source_id: string; // company subdomain
   source_url: string;
   name: string;
@@ -54,6 +54,7 @@ export interface IbizCompany {
 
 export interface IbizCompanySummary {
   id: string;
+  source: "ibiz" | "belarusinfo";
   name: string;
   address: string;
   city: string;

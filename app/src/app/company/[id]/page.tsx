@@ -58,6 +58,16 @@ export default function CompanyPage({ params }: PageProps) {
     };
   }, [id]);
 
+  const companyMaybe = data?.company ?? null;
+  const logoUrl = (companyMaybe?.logo_url || "").trim();
+  const logoSrc = useMemo(() => (logoUrl ? `/api/ibiz/logo?u=${encodeURIComponent(logoUrl)}` : ""), [logoUrl]);
+
+  const phones: IbizPhoneExt[] = useMemo(() => {
+    if (!companyMaybe) return [];
+    if (companyMaybe.phones_ext && companyMaybe.phones_ext.length > 0) return companyMaybe.phones_ext;
+    return (companyMaybe.phones || []).map((number) => ({ number, labels: [] as string[] }));
+  }, [companyMaybe]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col font-sans bg-gray-100">
@@ -104,14 +114,9 @@ export default function CompanyPage({ params }: PageProps) {
   const primaryRubric = company.rubrics?.[0] ?? null;
 
   const icon = primaryCategory?.slug ? IBIZ_CATEGORY_ICONS[primaryCategory.slug] || "🏢" : "🏢";
-  const logoUrl = (company.logo_url || "").trim();
-  const logoSrc = useMemo(() => (logoUrl ? `/api/ibiz/logo?u=${encodeURIComponent(logoUrl)}` : ""), [logoUrl]);
   const showLogo = Boolean(logoUrl) && !logoFailed;
-
-  const phones: IbizPhoneExt[] = useMemo(() => {
-    if (company.phones_ext && company.phones_ext.length > 0) return company.phones_ext;
-    return (company.phones || []).map((number) => ({ number, labels: [] as string[] }));
-  }, [company.phones, company.phones_ext]);
+  const sourceUrl = (company.source_url || "").trim();
+  const showSourceUrl = Boolean(sourceUrl) && !/belarusinfo\.by/i.test(sourceUrl);
 
   const primaryPhone = phones?.[0]?.number || "";
   const primaryEmail = company.emails?.[0] || "";
@@ -186,7 +191,15 @@ export default function CompanyPage({ params }: PageProps) {
                     )}
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold">{company.name}</h1>
+                    <h1 className="text-3xl font-bold">
+                      {company.name}
+                      {company.source === "belarusinfo" && (
+                        <span
+                          aria-hidden
+                          className="ml-2 inline-block w-2 h-2 rounded-full bg-white/40 align-middle"
+                        />
+                      )}
+                    </h1>
                     <p className="text-pink-200 mt-2">
                       {primaryCategory ? primaryCategory.name : ""}
                       {primaryRubric ? ` → ${primaryRubric.name}` : ""}
@@ -372,17 +385,19 @@ export default function CompanyPage({ params }: PageProps) {
 
             {/* Sidebar */}
             <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-lg font-bold text-gray-800 mb-4">Источник</h2>
-                <a
-                  href={company.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#820251] hover:underline break-all"
-                >
-                  {company.source_url}
-                </a>
-              </div>
+              {showSourceUrl && (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-lg font-bold text-gray-800 mb-4">Источник</h2>
+                  <a
+                    href={sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#820251] hover:underline break-all"
+                  >
+                    {sourceUrl}
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 

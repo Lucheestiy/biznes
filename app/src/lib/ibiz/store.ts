@@ -144,6 +144,7 @@ function buildCompanySummary(company: IbizCompany, regionSlug: string | null): I
   const primaryRubric = company.rubrics?.[0] ?? null;
   return {
     id: company.source_id,
+    source: company.source,
     name: company.name || "",
     address: company.address || "",
     city: company.city || "",

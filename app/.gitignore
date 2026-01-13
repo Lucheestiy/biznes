@@ -42,6 +42,11 @@ next-env.d.ts
 public/data/ibiz/companies.jsonl
 public/data/ibiz/*.csv
 public/data/ibiz/*.tmp
+public/data/ibiz/*.backup-*.jsonl
 
 # ibiz logo proxy cache (generated)
 .cache/ibiz-logo-cache/
+
+# python (generated)
+__pycache__/
+*.pyc
