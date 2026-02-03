@@ -11,7 +11,8 @@ type CachedMeta = {
   fetchedAt: string;
 };
 
-const CACHE_DIR = process.env.IBIZ_LOGO_CACHE_DIR?.trim() || path.join(os.tmpdir(), "ibiz-logo-cache");
+const CACHE_DIR = process.env.BIZNES_LOGO_CACHE_DIR?.trim() || path.join(os.tmpdir(), "biznes-logo-cache");
+const UPSTREAM_SUFFIX = process.env.BIZNES_LOGO_UPSTREAM_SUFFIX?.trim() || "";
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_BYTES = 5 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 15_000;
@@ -24,9 +25,32 @@ function asArrayBuffer(body: Uint8Array): ArrayBuffer {
   return buf;
 }
 
+function guessContentType(filePath: string): string {
+  const ext = path.extname(filePath || "").toLowerCase();
+  switch (ext) {
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".gif":
+      return "image/gif";
+    case ".webp":
+      return "image/webp";
+    case ".svg":
+      return "image/svg+xml";
+    case ".ico":
+      return "image/x-icon";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 function isAllowedHost(hostname: string): boolean {
+  if (!UPSTREAM_SUFFIX) return false;
   const h = (hostname || "").toLowerCase();
-  return h === "ibiz.by" || h.endsWith(".ibiz.by");
+  const suffix = UPSTREAM_SUFFIX.toLowerCase();
+  return h === suffix || h.endsWith(`.${suffix}`);
 }
 
 function normalizeTargetUrl(raw: string): URL | null {
@@ -71,8 +95,24 @@ async function readCached(
     return null;
   }
 
+  if (!stat.isFile() || stat.size <= 0) {
+    // Corrupted cache entry (e.g., 0-byte file). Ignore and allow refetch.
+    // Best-effort cleanup to avoid serving empty responses forever.
+    try {
+      await fs.unlink(filePath);
+    } catch {
+      // ignore
+    }
+    try {
+      await fs.unlink(metaPath);
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+
   const isFresh = now - stat.mtimeMs < CACHE_TTL_MS;
-  let contentType = "application/octet-stream";
+  let contentType = guessContentType(filePath);
   try {
     const meta = JSON.parse(await fs.readFile(metaPath, "utf-8")) as Partial<CachedMeta>;
     if (meta?.contentType && typeof meta.contentType === "string") contentType = meta.contentType;
@@ -82,6 +122,19 @@ async function readCached(
 
   try {
     const body = await fs.readFile(filePath);
+    if (body.byteLength <= 0) {
+      try {
+        await fs.unlink(filePath);
+      } catch {
+        // ignore
+      }
+      try {
+        await fs.unlink(metaPath);
+      } catch {
+        // ignore
+      }
+      return null;
+    }
     return { body, contentType, isFresh };
   } catch {
     return null;
@@ -98,7 +151,7 @@ async function fetchAndCache(normalizedUrl: string, filePath: string, metaPath: 
       signal: controller.signal,
       redirect: "follow",
       headers: {
-        "user-agent": "biznes.lucheestiy.com/ibiz-logo-proxy",
+        "user-agent": "biznes.lucheestiy.com/logo-proxy",
       },
     });
   } finally {
@@ -131,11 +184,36 @@ async function fetchAndCache(normalizedUrl: string, filePath: string, metaPath: 
 }
 
 export async function GET(request: NextRequest) {
-  const rawUrl = request.nextUrl.searchParams.get("url") || request.nextUrl.searchParams.get("u") || "";
-  const target = normalizeTargetUrl(rawUrl);
-  if (!target) {
-    return new Response("bad_url", { status: 400 });
-  }
+  const id = (request.nextUrl.searchParams.get("id") || "").trim();
+  const logoPath = (request.nextUrl.searchParams.get("path") || request.nextUrl.searchParams.get("p") || "").trim();
+
+  const isValidCompanyId = (value: string): boolean => {
+    const v = (value || "").trim().toLowerCase();
+    if (!v || v.length > 63) return false;
+    return /^[a-z0-9-]+$/u.test(v);
+  };
+
+  const isValidLogoPath = (value: string): boolean => {
+    const v = (value || "").trim();
+    if (!v.startsWith("/images/")) return false;
+    if (v.includes("..")) return false;
+    if (v.includes("\\")) return false;
+    return true;
+  };
+
+  const target = (() => {
+    if (id && logoPath) {
+      if (!UPSTREAM_SUFFIX) return null;
+      if (!isValidCompanyId(id) || !isValidLogoPath(logoPath)) return null;
+      return new URL(`https://${id.toLowerCase()}.${UPSTREAM_SUFFIX}${logoPath}`);
+    }
+
+    // Legacy mode: full URL provided by caller.
+    const rawUrl = request.nextUrl.searchParams.get("url") || request.nextUrl.searchParams.get("u") || "";
+    return normalizeTargetUrl(rawUrl);
+  })();
+
+  if (!target) return new Response("bad_url", { status: 400 });
 
   const normalizedUrl = target.toString();
   const key = cacheKey(normalizedUrl);

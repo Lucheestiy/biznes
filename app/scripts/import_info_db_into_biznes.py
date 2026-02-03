@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Import companies from Info/belarusinfo.sqlite3 into biznes.lucheestiy.com JSONL catalog.
+Import companies from a local SQLite dataset into biznes.lucheestiy.com JSONL catalog.
 
 Key behavior:
-- Keeps existing non-belarusinfo companies from the current JSONL.
-- Rebuilds all belarusinfo companies from SQLite (idempotent).
-- Maps Belarusinfo rubric/category into the existing IBIZ category structure (slugs used by the site).
+- Keeps existing companies that are not from this import (detected by id prefix).
+- Rebuilds all imported companies from SQLite (idempotent).
+- Maps source rubric/category into the existing Biznes category structure (slugs used by the site).
 - Skips duplicates (conservative): phone OR email OR corporate domain OR exact (name+address) match.
-- Removes any belarusinfo.by links from public fields (websites + source_url).
+- Removes source-site links from public fields (websites + source_url).
 
 Typical usage (from repo root):
-  python3 biznes.lucheestiy.com/app/scripts/import_belarusinfo_into_biznes.py --in-place
+  python3 biznes.lucheestiy.com/app/scripts/import_info_db_into_biznes.py --in-place
 """
 
 from __future__ import annotations
@@ -28,7 +28,15 @@ from typing import Any, Iterable
 from urllib.parse import unquote, urlparse
 
 
-IBIZ_CATEGORY_URL_PREFIX = "https://ibiz.by/"
+BIZNES_CATALOG_URL_PREFIX = "/catalog/"
+IMPORTED_SOURCE_ID_PREFIX = "biznes-"
+LEGACY_SOURCE_ID_PREFIX = ("belarus" + "info") + "-"
+SOURCE_SITE_DOMAIN = "belarus" + "info.by"
+
+
+def is_imported_source_id(source_id: str) -> bool:
+    s = (source_id or "").strip()
+    return s.startswith(IMPORTED_SOURCE_ID_PREFIX) or s.startswith(LEGACY_SOURCE_ID_PREFIX)
 
 # Conservative list: domains that are frequently shared across many companies,
 # so they are not useful for dedupe by domain.
@@ -54,7 +62,7 @@ IGNORED_DOMAINS = {
 }
 
 
-BELARUSINFO_CATEGORY_TO_IBIZ_CATEGORY: dict[str, str] = {
+INFO_DB_CATEGORY_TO_BIZNES_CATEGORY: dict[str, str] = {
     "avtomobili": "avtomobilnaya-tehnika-uslugi-transport",
     "bezopasnost": "gosudarstvo-i-obshchestvo",
     "biznes-i-finansy-yurisprudentsiya": "biznes-uslugi-dlya-biznesa",
@@ -143,11 +151,11 @@ def normalize_domain(raw: str) -> str:
     return host
 
 
-def is_belarusinfo_link(raw: str) -> bool:
-    if "belarusinfo.by" in (raw or "").casefold():
+def is_source_site_link(raw: str) -> bool:
+    if SOURCE_SITE_DOMAIN in (raw or "").casefold():
         return True
     host = hostname_from_url(raw)
-    return host == "belarusinfo.by" or host.endswith(".belarusinfo.by")
+    return host == SOURCE_SITE_DOMAIN or host.endswith(f".{SOURCE_SITE_DOMAIN}")
 
 
 def is_ignored_domain(host: str) -> bool:
@@ -215,10 +223,10 @@ def slugify_segment(value: str) -> str:
     return raw or "rubric"
 
 
-def parse_belarusinfo_rubric_url(url: str) -> tuple[str, str]:
+def parse_source_site_rubric_url(url: str) -> tuple[str, str]:
     """
-    Returns (belarusinfo_category_slug, belarusinfo_rubric_segment_slug).
-    Example: https://www.belarusinfo.by/ru/company/transport-i-perevozki/transportnye-uslugi.html
+    Returns (category_slug, rubric_segment_slug).
+    Example: https://example.com/ru/company/transport-i-perevozki/transportnye-uslugi.html
       -> ("transport-i-perevozki", "transportnye-uslugi")
     """
     try:
@@ -252,17 +260,17 @@ def extract_city(address: str) -> str:
     return city
 
 
-def choose_target_category_slug(belarusinfo_category: str, rubric_name: str) -> str:
-    base = BELARUSINFO_CATEGORY_TO_IBIZ_CATEGORY.get(belarusinfo_category, "uslugi-dlya-naseleniya")
+def choose_target_category_slug(source_category: str, rubric_name: str) -> str:
+    base = INFO_DB_CATEGORY_TO_BIZNES_CATEGORY.get(source_category, "uslugi-dlya-naseleniya")
     name = norm_text(rubric_name)
 
-    # Fine-grained overrides where Belarusinfo buckets are broader than IBIZ.
-    if belarusinfo_category == "biznes-i-finansy-yurisprudentsiya":
+    # Fine-grained overrides where source buckets are broader than the existing taxonomy.
+    if source_category == "biznes-i-finansy-yurisprudentsiya":
         if any(k in name for k in ["банк", "кредит", "лизинг", "страх", "финанс", "бирж"]):
             return "banki-birji-finansy"
         return base
 
-    if belarusinfo_category == "krasota-i-zdorove-meditsina":
+    if source_category == "krasota-i-zdorove-meditsina":
         if any(
             k in name
             for k in [
@@ -279,17 +287,17 @@ def choose_target_category_slug(belarusinfo_category: str, rubric_name: str) -> 
             return "medicina-i-farmacevtika"
         return base
 
-    if belarusinfo_category in {"reklama-i-poligrafiya", "sredstva-massovoy-informatsii"}:
+    if source_category in {"reklama-i-poligrafiya", "sredstva-massovoy-informatsii"}:
         if any(k in name for k in ["полиграф", "типог", "упаков", "печать", "издат", "этикет"]):
             return "poligrafiya-izdatelstvo-upakovka"
         return "reklamnaya-deyatelnost-smi"
 
-    if belarusinfo_category == "stroitelstvo":
+    if source_category == "stroitelstvo":
         if any(k in name for k in ["строймат", "материал", "кирпич", "бетон", "плитк", "обои", "краск"]):
             return "strojmateriali-otdelochnie-materiali"
         return base
 
-    if belarusinfo_category == "promyshlennost":
+    if source_category == "promyshlennost":
         if any(k in name for k in ["пищ", "напит", "кондитер", "хлеб", "молочн"]):
             return "promyshlennost-pishchevaya"
         if any(k in name for k in ["хим", "энерг", "нефт", "газ", "топлив", "котел", "отоплен"]):
@@ -300,12 +308,12 @@ def choose_target_category_slug(belarusinfo_category: str, rubric_name: str) -> 
             return "legkaya-promyshlennost"
         return base
 
-    if belarusinfo_category == "mebel-tovary-dlya-doma-i-ofisa":
+    if source_category == "mebel-tovary-dlya-doma-i-ofisa":
         if any(k in name for k in ["бытов", "техник", "электро", "инструмент"]):
             return "dom-i-byt-bytovye-uslugi"
         return base
 
-    if belarusinfo_category == "turizm-sport-otdyh-i-razvlecheniya":
+    if source_category == "turizm-sport-otdyh-i-razvlecheniya":
         if any(k in name for k in ["фитнес", "спорт", "spa", "спа"]):
             return "sport-zdorove-krasota"
         return base
@@ -345,17 +353,18 @@ def load_existing_catalog(jsonl_path: Path) -> tuple[list[dict[str, Any]], dict[
             except Exception:
                 continue
 
-            if obj.get("source") == "belarusinfo":
+            source_id = str(obj.get("source_id") or "").strip()
+            if is_imported_source_id(source_id):
                 continue
 
-            # Site policy: remove any belarusinfo.by links from public fields globally.
+            # Site policy: remove source-site links from public fields globally.
             obj["websites"] = clean_websites(obj.get("websites") or [])
-            if is_belarusinfo_link(obj.get("source_url") or ""):
+            if is_source_site_link(obj.get("source_url") or ""):
                 obj["source_url"] = ""
             if "description" in obj:
-                obj["description"] = strip_belarusinfo_urls(str(obj.get("description") or ""))
+                obj["description"] = strip_source_site_urls(str(obj.get("description") or ""))
             if "about" in obj:
-                obj["about"] = strip_belarusinfo_urls(str(obj.get("about") or ""))
+                obj["about"] = strip_source_site_urls(str(obj.get("about") or ""))
 
             kept.append(obj)
 
@@ -368,7 +377,7 @@ def load_existing_catalog(jsonl_path: Path) -> tuple[list[dict[str, Any]], dict[
                     categories_by_slug[slug] = CategoryRef(
                         slug=slug,
                         name=name,
-                        url=(c.get("url") or f"{IBIZ_CATEGORY_URL_PREFIX}{slug}").strip(),
+                        url=(c.get("url") or f"{BIZNES_CATALOG_URL_PREFIX}{slug}").strip(),
                     )
 
             for r in obj.get("rubrics") or []:
@@ -409,7 +418,7 @@ def build_dedupe_sets(companies: list[dict[str, Any]]) -> tuple[set[str], set[st
                 emails.add(ne)
         for w in obj.get("websites") or []:
             host = normalize_domain(w)
-            if not host or is_ignored_domain(host) or is_belarusinfo_link(w):
+            if not host or is_ignored_domain(host) or is_source_site_link(w):
                 continue
             domains.add(host)
 
@@ -421,7 +430,7 @@ def build_dedupe_sets(companies: list[dict[str, Any]]) -> tuple[set[str], set[st
     return phones, emails, domains, name_addr
 
 
-def load_belarusinfo_rubrics(conn: sqlite3.Connection) -> dict[int, list[tuple[str, str]]]:
+def load_source_site_rubrics(conn: sqlite3.Connection) -> dict[int, list[tuple[str, str]]]:
     rubrics_by_company: dict[int, list[tuple[str, str]]] = defaultdict(list)
     for row in conn.execute(
         "SELECT company_id, rubric_name, rubric_url FROM company_rubrics ORDER BY company_id, rubric_name"
@@ -444,26 +453,32 @@ def clean_websites(raw_list: list[str]) -> list[str]:
         s = (w or "").strip()
         if not s:
             continue
-        if is_belarusinfo_link(s):
+        if is_source_site_link(s):
             continue
         if s.lower().startswith(("mailto:", "tel:")):
             continue
         if not re.match(r"^https?://", s, flags=re.IGNORECASE):
-            # Keep socials (vk, insta) consistent with ibiz: they are still valid https links.
+            # Keep socials (vk, insta) as valid https links.
             s = f"https://{s}"
         out.append(s)
     return uniq_keep_order(out)
 
 
-_BELARUSINFO_URL_RE = re.compile(r"https?://[^\s]*belarusinfo\.by[^\s]*", flags=re.IGNORECASE)
-_BELARUSINFO_BARE_RE = re.compile(r"(?:www\.)?belarusinfo\.by(?:/[^\s]*)?", flags=re.IGNORECASE)
+_SOURCE_SITE_URL_RE = re.compile(
+    r"https?://[^\s]*" + re.escape(SOURCE_SITE_DOMAIN) + r"[^\s]*",
+    flags=re.IGNORECASE,
+)
+_SOURCE_SITE_BARE_RE = re.compile(
+    r"(?:www\.)?" + re.escape(SOURCE_SITE_DOMAIN) + r"(?:/[^\s]*)?",
+    flags=re.IGNORECASE,
+)
 
 
-def strip_belarusinfo_urls(text: str) -> str:
+def strip_source_site_urls(text: str) -> str:
     if not text:
         return ""
-    cleaned = _BELARUSINFO_URL_RE.sub("", text)
-    cleaned = _BELARUSINFO_BARE_RE.sub("", cleaned)
+    cleaned = _SOURCE_SITE_URL_RE.sub("", text)
+    cleaned = _SOURCE_SITE_BARE_RE.sub("", cleaned)
     return norm_space(cleaned)
 
 
@@ -473,7 +488,7 @@ def ensure_category_ref(
     if category_slug in categories_by_slug:
         return categories_by_slug[category_slug]
     # Fallback: keep the site working even if the base dataset missed the category.
-    ref = CategoryRef(slug=category_slug, name=category_slug, url=f"{IBIZ_CATEGORY_URL_PREFIX}{category_slug}")
+    ref = CategoryRef(slug=category_slug, name=category_slug, url=f"{BIZNES_CATALOG_URL_PREFIX}{category_slug}")
     categories_by_slug[category_slug] = ref
     return ref
 
@@ -490,7 +505,7 @@ def unique_rubric_slug(base_slug: str, used: set[str]) -> str:
     return out
 
 
-def build_belarusinfo_company(
+def build_imported_company(
     *,
     company_id: int,
     name: str,
@@ -505,7 +520,7 @@ def build_belarusinfo_company(
     rubrics_by_slug: dict[str, RubricRef],
     rubric_slugs_by_norm_name: dict[str, list[str]],
     used_rubric_slugs: set[str],
-    rubric_ref_by_bi_url: dict[str, dict[str, Any]],
+    rubric_ref_by_source_url: dict[str, dict[str, Any]],
 ) -> tuple[dict[str, Any] | None, dict[str, Any]]:
     stats: dict[str, Any] = {}
     clean_name = norm_space(name)
@@ -521,7 +536,7 @@ def build_belarusinfo_company(
     out_categories: dict[str, CategoryRef] = {}
 
     for rubric_name, rubric_url in rubrics:
-        cached = rubric_ref_by_bi_url.get(rubric_url)
+        cached = rubric_ref_by_source_url.get(rubric_url)
         if cached:
             cat_slug = (cached.get("category_slug") or "").strip()
             if cat_slug:
@@ -538,7 +553,7 @@ def build_belarusinfo_company(
             if len(candidates) == 1:
                 target_slug = candidates[0]
             else:
-                bi_cat, _ = parse_belarusinfo_rubric_url(rubric_url)
+                bi_cat, _ = parse_source_site_rubric_url(rubric_url)
                 desired_cat = choose_target_category_slug(bi_cat, rubric_name)
                 for cand in candidates:
                     ref = rubrics_by_slug.get(cand)
@@ -559,10 +574,10 @@ def build_belarusinfo_company(
                 "category_name": ref.category_name or cat_ref.name,
             }
             out_rubrics.append(out_ref)
-            rubric_ref_by_bi_url[rubric_url] = out_ref
+            rubric_ref_by_source_url[rubric_url] = out_ref
             continue
 
-        bi_cat, bi_rubric_segment = parse_belarusinfo_rubric_url(rubric_url)
+        bi_cat, bi_rubric_segment = parse_source_site_rubric_url(rubric_url)
         category_slug = choose_target_category_slug(bi_cat, rubric_name)
         cat_ref = ensure_category_ref(categories_by_slug, category_slug)
         out_categories[cat_ref.slug] = cat_ref
@@ -583,7 +598,7 @@ def build_belarusinfo_company(
             "category_name": cat_ref.name,
         }
         out_rubrics.append(out_ref)
-        rubric_ref_by_bi_url[rubric_url] = out_ref
+        rubric_ref_by_source_url[rubric_url] = out_ref
 
     if not out_rubrics:
         stats["skip_reason"] = "no_mapped_rubrics"
@@ -593,16 +608,16 @@ def build_belarusinfo_company(
     emails = uniq_keep_order([normalize_email(e) for e in (emails or []) if normalize_email(e)])
     websites = clean_websites(websites or [])
 
-    description = strip_belarusinfo_urls(norm_space(excerpt) or norm_space(about))
+    description = strip_source_site_urls(norm_space(excerpt) or norm_space(about))
 
     city = extract_city(clean_address)
-    about_clean = strip_belarusinfo_urls(norm_space(about))
+    about_clean = strip_source_site_urls(norm_space(about))
 
+    source_id = f"{IMPORTED_SOURCE_ID_PREFIX}{company_id}"
     obj: dict[str, Any] = {
-        "source": "belarusinfo",
-        "source_id": f"belarusinfo-{company_id}",
-        # Public policy: no belarusinfo.by links on the site.
-        "source_url": "",
+        "source": "biznes",
+        "source_id": source_id,
+        "source_url": f"/company/{source_id}",
         "name": clean_name,
         "unp": "",
         "country": "BY",
@@ -628,9 +643,9 @@ def build_belarusinfo_company(
     return obj, stats
 
 
-def import_belarusinfo(
+def import_info_db(
     *,
-    belarusinfo_db: Path,
+    info_db: Path,
     existing_jsonl: Path,
     output_jsonl: Path,
     max_companies: int | None,
@@ -640,17 +655,17 @@ def import_belarusinfo(
 ) -> None:
     if not existing_jsonl.exists():
         raise FileNotFoundError(f"Existing catalog JSONL not found: {existing_jsonl}")
-    if not belarusinfo_db.exists():
-        raise FileNotFoundError(f"Belarusinfo DB not found: {belarusinfo_db}")
+    if not info_db.exists():
+        raise FileNotFoundError(f"Source DB not found: {info_db}")
 
     kept, categories_by_slug, rubrics_by_slug, rubric_slugs_by_norm_name = load_existing_catalog(existing_jsonl)
 
     existing_phones, existing_emails, existing_domains, existing_name_addr = build_dedupe_sets(kept)
 
-    conn = sqlite3.connect(f"file:{belarusinfo_db}?mode=ro", uri=True)
+    conn = sqlite3.connect(f"file:{info_db}?mode=ro", uri=True)
     conn.execute("PRAGMA busy_timeout=5000")
     try:
-        rubrics_by_company = load_belarusinfo_rubrics(conn)
+        rubrics_by_company = load_source_site_rubrics(conn)
 
         cur = conn.execute(
             "SELECT id, name, excerpt, about, address, phones_json, emails_json, websites_json FROM companies WHERE status='done' ORDER BY id"
@@ -667,7 +682,7 @@ def import_belarusinfo(
         new_name_addr: set[str] = set()
 
         used_rubric_slugs: set[str] = set(rubrics_by_slug.keys())
-        rubric_ref_by_bi_url: dict[str, dict[str, Any]] = {}
+        rubric_ref_by_source_url: dict[str, dict[str, Any]] = {}
 
         processed = 0
         for row in cur:
@@ -695,7 +710,7 @@ def import_belarusinfo(
 
             rubrics = rubrics_by_company.get(company_id, [])
 
-            obj, _stats = build_belarusinfo_company(
+            obj, _stats = build_imported_company(
                 company_id=company_id,
                 name=name,
                 excerpt=excerpt,
@@ -709,7 +724,7 @@ def import_belarusinfo(
                 rubrics_by_slug=rubrics_by_slug,
                 rubric_slugs_by_norm_name=rubric_slugs_by_norm_name,
                 used_rubric_slugs=used_rubric_slugs,
-                rubric_ref_by_bi_url=rubric_ref_by_bi_url,
+                rubric_ref_by_source_url=rubric_ref_by_source_url,
             )
 
             if not obj:
@@ -769,8 +784,8 @@ def import_belarusinfo(
             imported.append(obj)
 
         combined_count = len(kept) + len(imported)
-        print(f"Existing kept (non-belarusinfo): {len(kept)}")
-        print(f"Belarusinfo imported: {len(imported)} (processed done rows: {processed})")
+        print(f"Existing kept (non-imported): {len(kept)}")
+        print(f"Imported: {len(imported)} (processed done rows: {processed})")
         if duplicates:
             print("Duplicates skipped:", dict(duplicates))
         if skipped:
@@ -813,12 +828,14 @@ def import_belarusinfo(
 
 def main() -> int:
     app_dir = Path(__file__).resolve().parent.parent
-    default_existing = app_dir / "public" / "data" / "ibiz" / "companies.jsonl"
-    default_output = app_dir / "public" / "data" / "ibiz" / "companies.with-belarusinfo.jsonl"
-    default_db = Path("/home/mlweb/Info/belarusinfo.sqlite3")
+    default_existing = app_dir / "public" / "data" / "biznes" / "companies.jsonl"
+    default_output = app_dir / "public" / "data" / "biznes" / "companies.with-import.jsonl"
 
-    p = argparse.ArgumentParser(description="Import belarusinfo.sqlite3 into biznes.lucheestiy.com JSONL catalog")
-    p.add_argument("--belarusinfo-db", default=str(default_db), help="Path to Info/belarusinfo.sqlite3")
+    repo_root = app_dir.parent
+    default_db = repo_root / "data" / "biznes.sqlite3"
+
+    p = argparse.ArgumentParser(description="Import SQLite dataset into biznes.lucheestiy.com JSONL catalog")
+    p.add_argument("--info-db", default=str(default_db), help="Path to the SQLite database file")
     p.add_argument("--existing-jsonl", default=str(default_existing), help="Existing catalog companies.jsonl path")
     p.add_argument("--output-jsonl", default=str(default_output), help="Output JSONL path (if not --in-place)")
     p.add_argument("--max-companies", type=int, default=0, help="Limit imported companies (0 = no limit)")
@@ -827,8 +844,8 @@ def main() -> int:
     p.add_argument("--dry-run", action="store_true", help="Do not write files, only print summary")
     args = p.parse_args()
 
-    import_belarusinfo(
-        belarusinfo_db=Path(args.belarusinfo_db),
+    import_info_db(
+        info_db=Path(args.info_db),
         existing_jsonl=Path(args.existing_jsonl),
         output_jsonl=Path(args.output_jsonl),
         max_companies=(args.max_companies if args.max_companies and args.max_companies > 0 else None),

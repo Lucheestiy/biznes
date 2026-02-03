@@ -1,26 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import CompanyCard from "@/components/CompanyCard";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegion } from "@/contexts/RegionContext";
 import { regions } from "@/data/regions";
-import type { IbizRubricResponse } from "@/lib/ibiz/types";
-import { IBIZ_CATEGORY_ICONS } from "@/lib/ibiz/icons";
+import type { BiznesRubricResponse } from "@/lib/biznes/types";
+import { BIZNES_CATEGORY_ICONS } from "@/lib/biznes/icons";
 
 interface PageProps {
-  params: Promise<{ category: string; rubric: string[] }>;
+  params: { category: string; rubric: string[] };
 }
 
 export default function SubcategoryPage({ params }: PageProps) {
-  const { category, rubric } = use(params);
+  const { category, rubric } = params;
   const { t } = useLanguage();
   const { selectedRegion, setSelectedRegion, regionName } = useRegion();
 
-  const [data, setData] = useState<IbizRubricResponse | null>(null);
+  const [data, setData] = useState<BiznesRubricResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const rubricPath = Array.isArray(rubric) ? rubric.join("/") : String(rubric || "");
@@ -32,10 +32,10 @@ export default function SubcategoryPage({ params }: PageProps) {
     const rubricSlug = `${category}/${rubricPath}`;
     const region = selectedRegion || "";
     fetch(
-      `/api/ibiz/rubric?slug=${encodeURIComponent(rubricSlug)}&region=${encodeURIComponent(region)}&offset=0&limit=60`,
+      `/api/biznes/rubric?slug=${encodeURIComponent(rubricSlug)}&region=${encodeURIComponent(region)}&offset=0&limit=60`,
     )
       .then((r) => (r.ok ? r.json() : null))
-      .then((resp: IbizRubricResponse | null) => {
+      .then((resp: BiznesRubricResponse | null) => {
         if (!isMounted) return;
         setData(resp);
         setIsLoading(false);
@@ -51,7 +51,7 @@ export default function SubcategoryPage({ params }: PageProps) {
     };
   }, [category, rubricPath, selectedRegion]);
 
-  const icon = IBIZ_CATEGORY_ICONS[category] || "🏢";
+  const icon = BIZNES_CATEGORY_ICONS[category] || "🏢";
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-100">

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync:ibiz": "node scripts/sync_ibiz_data.mjs",
+    "sync:biznes": "node scripts/sync_biznes_data.mjs",
     "index:meili": "npx tsx scripts/index_meilisearch.ts"
   },
   "dependencies": {

@@ -38,9 +38,6 @@ export function RegionProvider({ children }: { children: ReactNode }) {
 
   const regionName = selectedRegion ? regionNames[selectedRegion] || selectedRegion : "Все регионы";
 
-  if (!isInitialized) {
-    return null;
-  }
 
   return (
     <RegionContext.Provider value={{ selectedRegion, setSelectedRegion, regionName }}>

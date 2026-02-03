@@ -1,15 +1,15 @@
-export interface IbizPhoneExt {
+export interface BiznesPhoneExt {
   number: string;
   labels: string[];
 }
 
-export interface IbizCategoryRef {
+export interface BiznesCategoryRef {
   slug: string;
   name: string;
   url: string;
 }
 
-export interface IbizRubricRef {
+export interface BiznesRubricRef {
   slug: string;
   name: string;
   url: string;
@@ -17,19 +17,19 @@ export interface IbizRubricRef {
   category_name: string;
 }
 
-export interface IbizWorkHours {
+export interface BiznesWorkHours {
   work_time?: string;
   break_time?: string;
   status?: string;
 }
 
-export interface IbizCompanyExtra {
+export interface BiznesCompanyExtra {
   lat: number | null;
   lng: number | null;
 }
 
-export interface IbizCompany {
-  source: "ibiz" | "belarusinfo";
+export interface BiznesCompany {
+  source: "biznes";
   source_id: string; // company subdomain
   source_url: string;
   name: string;
@@ -39,28 +39,28 @@ export interface IbizCompany {
   city: string;
   address: string;
   phones: string[];
-  phones_ext: IbizPhoneExt[];
+  phones_ext: BiznesPhoneExt[];
   emails: string[];
   websites: string[];
   description: string;
   about: string;
   contact_person: string;
   logo_url: string;
-  work_hours: IbizWorkHours;
-  categories: IbizCategoryRef[];
-  rubrics: IbizRubricRef[];
-  extra: IbizCompanyExtra;
+  work_hours: BiznesWorkHours;
+  categories: BiznesCategoryRef[];
+  rubrics: BiznesRubricRef[];
+  extra: BiznesCompanyExtra;
 }
 
-export interface IbizCompanySummary {
+export interface BiznesCompanySummary {
   id: string;
-  source: "ibiz" | "belarusinfo";
+  source: "biznes";
   name: string;
   address: string;
   city: string;
   region: string;
-  work_hours: IbizWorkHours;
-  phones_ext: IbizPhoneExt[];
+  work_hours: BiznesWorkHours;
+  phones_ext: BiznesPhoneExt[];
   phones: string[];
   emails: string[];
   websites: string[];
@@ -72,23 +72,23 @@ export interface IbizCompanySummary {
   primary_rubric_name: string | null;
 }
 
-export interface IbizCatalogRubric {
+export interface BiznesCatalogRubric {
   slug: string; // full slug: "<top>/<rubric>"
   name: string;
   url: string;
   count: number;
 }
 
-export interface IbizCatalogCategory {
+export interface BiznesCatalogCategory {
   slug: string;
   name: string;
   url: string;
   icon: string | null;
   company_count: number;
-  rubrics: IbizCatalogRubric[];
+  rubrics: BiznesCatalogRubric[];
 }
 
-export interface IbizCatalogResponse {
+export interface BiznesCatalogResponse {
   stats: {
     companies_total: number;
     categories_total: number;
@@ -96,14 +96,14 @@ export interface IbizCatalogResponse {
     updated_at: string | null;
     source_path: string | null;
   };
-  categories: IbizCatalogCategory[];
+  categories: BiznesCatalogCategory[];
 }
 
-export interface IbizCategoryResponse {
-  category: IbizCatalogCategory;
+export interface BiznesCategoryResponse {
+  category: BiznesCatalogCategory;
 }
 
-export interface IbizRubricResponse {
+export interface BiznesRubricResponse {
   rubric: {
     slug: string;
     name: string;
@@ -112,7 +112,7 @@ export interface IbizRubricResponse {
     category_name: string;
     count: number;
   };
-  companies: IbizCompanySummary[];
+  companies: BiznesCompanySummary[];
   page: {
     offset: number;
     limit: number;
@@ -120,15 +120,15 @@ export interface IbizRubricResponse {
   };
 }
 
-export interface IbizCompanyResponse {
-  company: IbizCompany;
+export interface BiznesCompanyResponse {
+  company: BiznesCompany;
   primary: {
     category_slug: string | null;
     rubric_slug: string | null;
   };
 }
 
-export interface IbizSuggestResponse {
+export interface BiznesSuggestResponse {
   query: string;
   suggestions: Array<
     | { type: "category"; slug: string; name: string; url: string; icon: string | null; count: number }
@@ -137,8 +137,8 @@ export interface IbizSuggestResponse {
   >;
 }
 
-export interface IbizSearchResponse {
+export interface BiznesSearchResponse {
   query: string;
   total: number;
-  companies: IbizCompanySummary[];
+  companies: BiznesCompanySummary[];
 }

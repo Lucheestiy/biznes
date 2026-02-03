@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegion } from "@/contexts/RegionContext";
 import { regions } from "@/data/regions";
-import type { IbizSuggestResponse } from "@/lib/ibiz/types";
+import type { BiznesSuggestResponse } from "@/lib/biznes/types";
 
 interface SearchBarProps {
   variant?: "hero" | "compact";
@@ -42,11 +42,11 @@ export default function SearchBar({ variant = "hero" }: SearchBarProps) {
 
     const abort = new AbortController();
     const region = selectedRegion || "";
-    fetch(`/api/ibiz/suggest?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}`, {
+    fetch(`/api/biznes/suggest?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}`, {
       signal: abort.signal,
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: IbizSuggestResponse | null) => {
+      .then((data: BiznesSuggestResponse | null) => {
         if (!data) return;
         const mapped: SearchSuggestion[] = (data.suggestions || [])
           .map((s) => {

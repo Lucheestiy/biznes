@@ -38,14 +38,14 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# ibiz scraped data exports (generated)
-public/data/ibiz/companies.jsonl
-public/data/ibiz/*.csv
-public/data/ibiz/*.tmp
-public/data/ibiz/*.backup-*.jsonl
+# scraped data exports (generated)
+public/data/biznes/companies.jsonl
+public/data/biznes/*.csv
+public/data/biznes/*.tmp
+public/data/biznes/*.backup-*.jsonl
 
-# ibiz logo proxy cache (generated)
-.cache/ibiz-logo-cache/
+# logo proxy cache (generated)
+.cache/biznes-logo-cache/
 
 # python (generated)
 __pycache__/

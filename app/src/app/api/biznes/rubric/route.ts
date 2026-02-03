@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ibizGetRubricCompanies } from "@/lib/ibiz/store";
+import { biznesGetRubricCompanies } from "@/lib/biznes/store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get("limit") || "24", 10);
 
   try {
-    const data = await ibizGetRubricCompanies({
+    const data = await biznesGetRubricCompanies({
       slug,
       region,
       query,
@@ -30,4 +30,3 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }
-

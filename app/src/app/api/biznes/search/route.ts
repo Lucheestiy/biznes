@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { meiliSearch, isMeiliHealthy } from "@/lib/meilisearch";
-import { ibizSearch } from "@/lib/ibiz/store";
+import { biznesSearch } from "@/lib/biznes/store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   }
 
   // Fallback to in-memory search
-  const data = await ibizSearch({
+  const data = await biznesSearch({
     query,
     region,
     offset: safeOffset,

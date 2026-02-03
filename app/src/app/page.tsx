@@ -10,15 +10,15 @@ import NewsBlock from "@/components/NewsBlock";
 import AIAssistant from "@/components/AIAssistant";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { regions } from "@/data/regions";
-import type { IbizCatalogCategory, IbizCatalogResponse } from "@/lib/ibiz/types";
+import type { BiznesCatalogCategory, BiznesCatalogResponse } from "@/lib/biznes/types";
 
 export default function Home() {
   const { t } = useLanguage();
-  const [catalog, setCatalog] = useState<IbizCatalogResponse | null>(null);
+  const [catalog, setCatalog] = useState<BiznesCatalogResponse | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    fetch("/api/ibiz/catalog")
+    fetch("/api/biznes/catalog")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!isMounted) return;
@@ -98,7 +98,7 @@ export default function Home() {
             {t("catalog.title")}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {(catalog?.categories || []).map((cat: IbizCatalogCategory) => (
+            {(catalog?.categories || []).map((cat: BiznesCatalogCategory) => (
               <Link
                 key={cat.slug}
                 href={`/catalog/${cat.slug}`}

@@ -68,9 +68,6 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  if (!isInitialized) {
-    return null;
-  }
 
   return (
     <FavoritesContext.Provider

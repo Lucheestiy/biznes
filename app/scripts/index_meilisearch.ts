@@ -4,8 +4,8 @@ import path from "node:path";
 import { indexCompanies } from "../src/lib/meilisearch/indexer";
 
 async function main() {
-  const jsonlPath = process.env.IBIZ_COMPANIES_JSONL_PATH
-    || path.join(process.cwd(), "public", "data", "ibiz", "companies.jsonl");
+  const jsonlPath = process.env.BIZNES_COMPANIES_JSONL_PATH
+    || path.join(process.cwd(), "public", "data", "biznes", "companies.jsonl");
 
   console.log("=".repeat(60));
   console.log("Meilisearch Indexer");

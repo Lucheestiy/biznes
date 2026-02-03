@@ -1,33 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegion } from "@/contexts/RegionContext";
 import { regions } from "@/data/regions";
-import type { IbizCatalogCategory, IbizCatalogResponse } from "@/lib/ibiz/types";
+import type { BiznesCatalogCategory, BiznesCatalogResponse } from "@/lib/biznes/types";
 
 interface PageProps {
-  params: Promise<{ category: string }>;
+  params: { category: string };
 }
 
 export default function CategoryPage({ params }: PageProps) {
-  const { category } = use(params);
+  const { category } = params;
   const { t } = useLanguage();
   const { selectedRegion, setSelectedRegion, regionName } = useRegion();
 
-  const [catalog, setCatalog] = useState<IbizCatalogResponse | null>(null);
+  const [catalog, setCatalog] = useState<BiznesCatalogResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
     const region = selectedRegion || "";
-    fetch(`/api/ibiz/catalog?region=${encodeURIComponent(region)}`)
+    fetch(`/api/biznes/catalog?region=${encodeURIComponent(region)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: IbizCatalogResponse | null) => {
+      .then((data: BiznesCatalogResponse | null) => {
         if (!isMounted) return;
         setCatalog(data);
         setIsLoading(false);
@@ -42,8 +42,8 @@ export default function CategoryPage({ params }: PageProps) {
     };
   }, [selectedRegion]);
 
-  const categoryData: IbizCatalogCategory | null =
-    (catalog?.categories || []).find((c: IbizCatalogCategory) => c.slug === category) || null;
+  const categoryData: BiznesCatalogCategory | null =
+    (catalog?.categories || []).find((c: BiznesCatalogCategory) => c.slug === category) || null;
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-100">

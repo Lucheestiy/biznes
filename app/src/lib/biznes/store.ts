@@ -3,18 +3,18 @@ import path from "node:path";
 import { createInterface } from "node:readline";
 
 import type {
-  IbizCatalogResponse,
-  IbizCategoryRef,
-  IbizCompany,
-  IbizCompanyResponse,
-  IbizCompanySummary,
-  IbizRubricRef,
-  IbizRubricResponse,
-  IbizSearchResponse,
-  IbizSuggestResponse,
+  BiznesCatalogResponse,
+  BiznesCategoryRef,
+  BiznesCompany,
+  BiznesCompanyResponse,
+  BiznesCompanySummary,
+  BiznesRubricRef,
+  BiznesRubricResponse,
+  BiznesSearchResponse,
+  BiznesSuggestResponse,
 } from "./types";
 
-import { IBIZ_CATEGORY_ICONS } from "./icons";
+import { BIZNES_CATEGORY_ICONS } from "./icons";
 
 const REGION_ALIAS: Record<string, string[]> = {
   minsk: ["minsk"],
@@ -43,7 +43,7 @@ const POSTAL_PREFIX_TO_REGION_SLUG: Record<string, string> = {
   "246": "gomel",
   "247": "gomel",
 
-  // Rare “corrupted” prefixes observed in current ibiz dataset exports
+  // Rare “corrupted” prefixes observed in current dataset exports
   "200": "minsk",
   "201": "vitebsk",
   "202": "minsk-region",
@@ -117,18 +117,17 @@ function normalizeRegionSlug(city: string, region: string, address: string): str
   return null;
 }
 
-function ibizDataPathCandidates(): string[] {
-  const env = process.env.IBIZ_COMPANIES_JSONL_PATH?.trim();
+function biznesDataPathCandidates(): string[] {
+  const env = process.env.BIZNES_COMPANIES_JSONL_PATH?.trim();
   const candidates: string[] = [];
   if (env) candidates.push(env);
 
-  candidates.push(path.join(process.cwd(), "public", "data", "ibiz", "companies.jsonl"));
-  candidates.push(path.resolve(process.cwd(), "..", "..", "Info-ibiz", "output", "companies.jsonl"));
+  candidates.push(path.join(process.cwd(), "public", "data", "biznes", "companies.jsonl"));
   return candidates;
 }
 
 function resolveCompaniesJsonlPath(): string {
-  for (const p of ibizDataPathCandidates()) {
+  for (const p of biznesDataPathCandidates()) {
     try {
       if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
     } catch {
@@ -136,7 +135,7 @@ function resolveCompaniesJsonlPath(): string {
     }
   }
   throw new Error(
-    `IBIZ companies.jsonl not found. Set IBIZ_COMPANIES_JSONL_PATH or place it at public/data/ibiz/companies.jsonl. Tried: ${ibizDataPathCandidates().join(
+    `companies.jsonl not found. Set BIZNES_COMPANIES_JSONL_PATH or place it at public/data/biznes/companies.jsonl. Tried: ${biznesDataPathCandidates().join(
       ", ",
     )}`,
   );
@@ -156,7 +155,7 @@ function normalizeLogoUrl(raw: string): string {
   return url;
 }
 
-function buildCompanySummary(company: IbizCompany, regionSlug: string | null): IbizCompanySummary {
+function buildCompanySummary(company: BiznesCompany, regionSlug: string | null): BiznesCompanySummary {
   const primaryCategory = company.categories?.[0] ?? null;
   const primaryRubric = company.rubrics?.[0] ?? null;
   return {
@@ -183,13 +182,13 @@ function buildCompanySummary(company: IbizCompany, regionSlug: string | null): I
 type Store = {
   sourcePath: string;
   updatedAt: string | null;
-  companiesById: Map<string, IbizCompany>;
-  companySummaryById: Map<string, IbizCompanySummary>;
+  companiesById: Map<string, BiznesCompany>;
+  companySummaryById: Map<string, BiznesCompanySummary>;
   companyRegionById: Map<string, string | null>;
   companySearchById: Map<string, string>;
 
-  categoriesBySlug: Map<string, IbizCategoryRef>;
-  rubricsBySlug: Map<string, IbizRubricRef>;
+  categoriesBySlug: Map<string, BiznesCategoryRef>;
+  rubricsBySlug: Map<string, BiznesRubricRef>;
   rubricsByCategorySlug: Map<string, string[]>;
 
   companyIdsByRubricSlug: Map<string, string[]>;
@@ -233,13 +232,13 @@ function sumRegionNestedCount(
 async function loadStoreFrom(sourcePath: string, stat: fs.Stats): Promise<Store> {
   const updatedAt = stat?.mtime ? new Date(stat.mtime).toISOString() : null;
 
-  const companiesById = new Map<string, IbizCompany>();
-  const companySummaryById = new Map<string, IbizCompanySummary>();
+  const companiesById = new Map<string, BiznesCompany>();
+  const companySummaryById = new Map<string, BiznesCompanySummary>();
   const companyRegionById = new Map<string, string | null>();
   const companySearchById = new Map<string, string>();
 
-  const categoriesBySlug = new Map<string, IbizCategoryRef>();
-  const rubricsBySlug = new Map<string, IbizRubricRef>();
+  const categoriesBySlug = new Map<string, BiznesCategoryRef>();
+  const rubricsBySlug = new Map<string, BiznesRubricRef>();
   const rubricsByCategorySlug = new Map<string, string[]>();
 
   const companyIdsByRubricSlug = new Map<string, string[]>();
@@ -257,9 +256,9 @@ async function loadStoreFrom(sourcePath: string, stat: fs.Stats): Promise<Store>
     const raw = line.trim();
     if (!raw) continue;
 
-    let company: IbizCompany;
+    let company: BiznesCompany;
     try {
-      company = JSON.parse(raw) as IbizCompany;
+      company = JSON.parse(raw) as BiznesCompany;
     } catch {
       continue;
     }
@@ -407,16 +406,16 @@ function applyRegionAlias(region: string | null, companyRegionSlug: string | nul
   return want.includes(companyRegionSlug);
 }
 
-export async function ibizGetCatalog(region: string | null): Promise<IbizCatalogResponse> {
+export async function biznesGetCatalog(region: string | null): Promise<BiznesCatalogResponse> {
   const store = await getStore();
-  const categories: IbizCatalogResponse["categories"] = [];
+  const categories: BiznesCatalogResponse["categories"] = [];
 
   const cats = Array.from(store.categoriesBySlug.values()).sort((a, b) =>
     (a.name || a.slug).localeCompare(b.name || b.slug, "ru", { sensitivity: "base" }),
   );
 
   for (const cat of cats) {
-    const rubrics: IbizCatalogResponse["categories"][number]["rubrics"] = [];
+    const rubrics: BiznesCatalogResponse["categories"][number]["rubrics"] = [];
     const rubricSlugs = store.rubricsByCategorySlug.get(cat.slug) || [];
     for (const rubricSlug of rubricSlugs) {
       const r = store.rubricsBySlug.get(rubricSlug);
@@ -431,7 +430,7 @@ export async function ibizGetCatalog(region: string | null): Promise<IbizCatalog
       slug: cat.slug,
       name: cat.name || cat.slug,
       url: cat.url || "",
-      icon: IBIZ_CATEGORY_ICONS[cat.slug] || null,
+      icon: BIZNES_CATEGORY_ICONS[cat.slug] || null,
       company_count,
       rubrics,
     });
@@ -453,13 +452,13 @@ export async function ibizGetCatalog(region: string | null): Promise<IbizCatalog
   };
 }
 
-export async function ibizGetRubricCompanies(params: {
+export async function biznesGetRubricCompanies(params: {
   slug: string;
   region: string | null;
   query: string | null;
   offset: number;
   limit: number;
-}): Promise<IbizRubricResponse> {
+}): Promise<BiznesRubricResponse> {
   const store = await getStore();
   const r = store.rubricsBySlug.get(params.slug);
   if (!r) {
@@ -485,7 +484,7 @@ export async function ibizGetRubricCompanies(params: {
   const limit = Math.max(1, Math.min(200, params.limit || 24));
   const pageIds = filtered.slice(offset, offset + limit);
 
-  const companies: IbizCompanySummary[] = [];
+  const companies: BiznesCompanySummary[] = [];
   for (const id of pageIds) {
     const summary = store.companySummaryById.get(id);
     if (summary) companies.push(summary);
@@ -507,9 +506,11 @@ export async function ibizGetRubricCompanies(params: {
   };
 }
 
-export async function ibizGetCompany(id: string): Promise<IbizCompanyResponse> {
+export async function biznesGetCompany(id: string): Promise<BiznesCompanyResponse> {
   const store = await getStore();
-  const company = store.companiesById.get(id);
+  const normalizedId = id.replace(/[-‐‑‒–—―]/g, "");
+  const company = store.companiesById.get(id)
+    || (normalizedId && normalizedId !== id ? store.companiesById.get(normalizedId) : undefined);
   if (!company) {
     throw new Error(`company_not_found:${id}`);
   }
@@ -522,17 +523,17 @@ export async function ibizGetCompany(id: string): Promise<IbizCompanyResponse> {
   };
 }
 
-export async function ibizSuggest(params: {
+export async function biznesSuggest(params: {
   query: string;
   region: string | null;
   limit: number;
-}): Promise<IbizSuggestResponse> {
+}): Promise<BiznesSuggestResponse> {
   const store = await getStore();
   const q = (params.query || "").trim().toLowerCase();
   const limit = Math.max(1, Math.min(20, params.limit || 8));
   if (q.length < 2) return { query: params.query, suggestions: [] };
 
-  const suggestions: IbizSuggestResponse["suggestions"] = [];
+  const suggestions: BiznesSuggestResponse["suggestions"] = [];
 
   for (const cat of store.categoriesBySlug.values()) {
     if (suggestions.length >= limit) break;
@@ -543,7 +544,7 @@ export async function ibizSuggest(params: {
       slug: cat.slug,
       name: cat.name || cat.slug,
       url: `/catalog/${cat.slug}`,
-      icon: IBIZ_CATEGORY_ICONS[cat.slug] || null,
+      icon: BIZNES_CATEGORY_ICONS[cat.slug] || null,
       count,
     });
   }
@@ -557,7 +558,7 @@ export async function ibizSuggest(params: {
       slug: r.slug,
       name: r.name || r.slug,
       url: `/catalog/${r.category_slug}/${r.slug.split("/").slice(1).join("/")}`,
-      icon: IBIZ_CATEGORY_ICONS[r.category_slug] || null,
+      icon: BIZNES_CATEGORY_ICONS[r.category_slug] || null,
       category_name: r.category_name || r.category_slug,
       count,
     });
@@ -575,7 +576,7 @@ export async function ibizSuggest(params: {
         id,
         name: summary.name,
         url: `/company/${id}`,
-        icon: summary.primary_category_slug ? IBIZ_CATEGORY_ICONS[summary.primary_category_slug] || null : null,
+        icon: summary.primary_category_slug ? BIZNES_CATEGORY_ICONS[summary.primary_category_slug] || null : null,
         subtitle: summary.address || summary.city || "",
       });
     }
@@ -584,12 +585,12 @@ export async function ibizSuggest(params: {
   return { query: params.query, suggestions };
 }
 
-export async function ibizSearch(params: {
+export async function biznesSearch(params: {
   query: string;
   region: string | null;
   offset: number;
   limit: number;
-}): Promise<IbizSearchResponse> {
+}): Promise<BiznesSearchResponse> {
   const store = await getStore();
   const q = (params.query || "").trim().toLowerCase();
   const offset = Math.max(0, params.offset || 0);
@@ -606,7 +607,7 @@ export async function ibizSearch(params: {
 
   const total = matches.length;
   const pageIds = matches.slice(offset, offset + limit);
-  const companies: IbizCompanySummary[] = [];
+  const companies: BiznesCompanySummary[] = [];
   for (const id of pageIds) {
     const summary = store.companySummaryById.get(id);
     if (summary) companies.push(summary);
@@ -615,9 +616,9 @@ export async function ibizSearch(params: {
   return { query: params.query, total, companies };
 }
 
-export async function ibizGetCompaniesSummary(ids: string[]): Promise<IbizCompanySummary[]> {
+export async function biznesGetCompaniesSummary(ids: string[]): Promise<BiznesCompanySummary[]> {
   const store = await getStore();
-  const out: IbizCompanySummary[] = [];
+  const out: BiznesCompanySummary[] = [];
   for (const raw of ids) {
     const id = (raw || "").trim();
     if (!id) continue;

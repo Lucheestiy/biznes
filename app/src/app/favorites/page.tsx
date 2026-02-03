@@ -8,7 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useRegion } from "@/contexts/RegionContext";
 import { regions, regionMapping } from "@/data/regions";
-import type { IbizCompanySummary } from "@/lib/ibiz/types";
+import type { BiznesCompanySummary } from "@/lib/biznes/types";
 import Link from "next/link";
 
 export default function FavoritesPage() {
@@ -16,7 +16,7 @@ export default function FavoritesPage() {
   const { favorites } = useFavorites();
   const { selectedRegion, setSelectedRegion, regionName } = useRegion();
 
-  const [companies, setCompanies] = useState<IbizCompanySummary[]>([]);
+  const [companies, setCompanies] = useState<BiznesCompanySummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -27,9 +27,9 @@ export default function FavoritesPage() {
     }
     let isMounted = true;
     setIsLoading(true);
-    fetch(`/api/ibiz/companies?ids=${encodeURIComponent(favorites.join(","))}`)
+    fetch(`/api/biznes/companies?ids=${encodeURIComponent(favorites.join(","))}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((resp: { companies?: IbizCompanySummary[] } | null) => {
+      .then((resp: { companies?: BiznesCompanySummary[] } | null) => {
         if (!isMounted) return;
         setCompanies(resp?.companies || []);
         setIsLoading(false);
@@ -194,4 +194,3 @@ export default function FavoritesPage() {
     </div>
   );
 }
-

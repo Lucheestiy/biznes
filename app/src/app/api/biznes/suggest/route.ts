@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { meiliSuggest, isMeiliHealthy } from "@/lib/meilisearch";
-import { ibizSuggest } from "@/lib/ibiz/store";
+import { biznesSuggest } from "@/lib/biznes/store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   }
 
   // Fallback to in-memory suggest
-  const data = await ibizSuggest({
+  const data = await biznesSuggest({
     query,
     region,
     limit: safeLimit,

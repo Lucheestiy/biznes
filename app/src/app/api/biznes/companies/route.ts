@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ibizGetCompaniesSummary } from "@/lib/ibiz/store";
+import { biznesGetCompaniesSummary } from "@/lib/biznes/store";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,7 +14,6 @@ export async function GET(request: Request) {
     .filter(Boolean)
     .slice(0, 200);
 
-  const companies = await ibizGetCompaniesSummary(ids);
+  const companies = await biznesGetCompaniesSummary(ids);
   return NextResponse.json({ companies });
 }
-

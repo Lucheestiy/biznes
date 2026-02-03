@@ -9,7 +9,7 @@ import SearchBar from "@/components/SearchBar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useRegion } from "@/contexts/RegionContext";
 import { regions } from "@/data/regions";
-import type { IbizCompanySummary, IbizSearchResponse } from "@/lib/ibiz/types";
+import type { BiznesCompanySummary, BiznesSearchResponse } from "@/lib/biznes/types";
 import Link from "next/link";
 
 function SearchResults() {
@@ -19,7 +19,7 @@ function SearchResults() {
 
   const query = searchParams.get("q") || "";
 
-  const [data, setData] = useState<IbizSearchResponse | null>(null);
+  const [data, setData] = useState<BiznesSearchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -32,9 +32,9 @@ function SearchResults() {
     let isMounted = true;
     setIsLoading(true);
     const region = selectedRegion || "";
-    fetch(`/api/ibiz/search?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}&offset=0&limit=60`)
+    fetch(`/api/biznes/search?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}&offset=0&limit=60`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((resp: IbizSearchResponse | null) => {
+      .then((resp: BiznesSearchResponse | null) => {
         if (!isMounted) return;
         setData(resp);
         setIsLoading(false);
@@ -50,7 +50,7 @@ function SearchResults() {
   }, [query, selectedRegion]);
 
   const grouped = useMemo(() => {
-    const out: Record<string, { name: string; companies: IbizCompanySummary[] }> = {};
+    const out: Record<string, { name: string; companies: BiznesCompanySummary[] }> = {};
     for (const c of data?.companies || []) {
       const key = c.primary_category_slug || "other";
       if (!out[key]) out[key] = { name: c.primary_category_name || "Другое", companies: [] };

@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ibizGetCompany } from "@/lib/ibiz/store";
+import { biznesGetCompany } from "@/lib/biznes/store";
 
 export async function GET(_request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   const companyId = (id || "").trim();
+  const normalizedId = companyId.replace(/[-‐‑‒–—―]/g, "");
   if (!companyId) {
     return NextResponse.json({ error: "missing_id" }, { status: 400 });
   }
 
   try {
-    const data = await ibizGetCompany(companyId);
+    const data = await biznesGetCompany(companyId);
     return NextResponse.json(data);
   } catch (e) {
     const msg = String((e as Error)?.message || "");
     if (msg.startsWith("company_not_found:")) {
+      if (normalizedId && normalizedId !== companyId) {
+        try {
+          const data = await biznesGetCompany(normalizedId);
+          return NextResponse.json(data);
+        } catch {
+          // fall through to not found
+        }
+      }
       return NextResponse.json({ error: "company_not_found" }, { status: 404 });
     }
     return NextResponse.json({ error: "internal_error" }, { status: 500 });

@@ -9,15 +9,17 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      IBIZ_COMPANIES_JSONL_PATH: /app/public/data/ibiz/companies.jsonl
+      BIZNES_COMPANIES_JSONL_PATH: /app/public/data/biznes/companies.jsonl
+      BIZNES_LOGO_CACHE_DIR: /tmp/biznes-logo-cache
+      BIZNES_LOGO_UPSTREAM_SUFFIX: ${BIZNES_LOGO_UPSTREAM_SUFFIX:-}
       MEILI_HOST: http://meilisearch:7700
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-changeme-min-16-chars}
       ADMIN_SECRET: ${ADMIN_SECRET:-dev-secret-change-me}
     networks:
       - biznes-network
     volumes:
-      - ./app/public/data/ibiz:/app/public/data/ibiz:ro
-      - ./app/.cache/ibiz-logo-cache:/tmp/ibiz-logo-cache
+      - ./app/public:/app/public:ro
+      - ./app/.cache/biznes-logo-cache:/tmp/biznes-logo-cache
     expose:
       - "3000"
     depends_on:

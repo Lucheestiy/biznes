@@ -1,4 +1,4 @@
-export const IBIZ_CATEGORY_ICONS: Record<string, string> = {
+export const BIZNES_CATEGORY_ICONS: Record<string, string> = {
   "avtomobilnaya-tehnika-uslugi-transport": "🚗",
   "apk-selskoe-i-lesnoe-hozyaystvo": "🌾",
   "banki-birji-finansy": "💰",
@@ -27,4 +27,3 @@ export const IBIZ_CATEGORY_ICONS: Record<string, string> = {
   "turizm-otdyh-dosug": "🧳",
   "uslugi-dlya-naseleniya": "🔧",
 };
-

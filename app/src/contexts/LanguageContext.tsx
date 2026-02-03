@@ -2200,9 +2200,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     [language]
   );
 
-  if (!isInitialized) {
-    return null;
-  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>

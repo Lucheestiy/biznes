@@ -6,9 +6,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const appDir = path.resolve(__dirname, "..");
-const defaultSrc = path.resolve(appDir, "..", "..", "Info-ibiz", "output", "companies.jsonl");
-const src = (process.env.IBIZ_COMPANIES_JSONL_PATH || defaultSrc).trim();
-const dst = path.resolve(appDir, "public", "data", "ibiz", "companies.jsonl");
+const src = (process.env.BIZNES_COMPANIES_JSONL_PATH || "").trim();
+const dst = path.resolve(appDir, "public", "data", "biznes", "companies.jsonl");
+
+if (!src) {
+  console.error("BIZNES_COMPANIES_JSONL_PATH is required (path to companies.jsonl)");
+  process.exit(1);
+}
 
 if (!fs.existsSync(src)) {
   console.error(`Source not found: ${src}`);
@@ -18,4 +22,3 @@ if (!fs.existsSync(src)) {
 fs.mkdirSync(path.dirname(dst), { recursive: true });
 fs.copyFileSync(src, dst);
 console.log(`Copied: ${src} -> ${dst}`);
-

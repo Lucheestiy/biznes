@@ -1,9 +1,9 @@
 import { getCompaniesIndex, isMeiliHealthy } from "./client";
 import type { MeiliSearchParams, MeiliCompanyDocument } from "./types";
-import type { IbizCompanySummary, IbizSearchResponse, IbizSuggestResponse } from "../ibiz/types";
-import { IBIZ_CATEGORY_ICONS } from "../ibiz/icons";
+import type { BiznesCompanySummary, BiznesSearchResponse, BiznesSuggestResponse } from "../biznes/types";
+import { BIZNES_CATEGORY_ICONS } from "../biznes/icons";
 
-function documentToSummary(doc: MeiliCompanyDocument): IbizCompanySummary {
+function documentToSummary(doc: MeiliCompanyDocument): BiznesCompanySummary {
   return {
     id: doc.id,
     source: doc.source,
@@ -28,7 +28,7 @@ function documentToSummary(doc: MeiliCompanyDocument): IbizCompanySummary {
   };
 }
 
-export async function meiliSearch(params: MeiliSearchParams): Promise<IbizSearchResponse> {
+export async function meiliSearch(params: MeiliSearchParams): Promise<BiznesSearchResponse> {
   const index = getCompaniesIndex();
 
   const filter: string[] = [];
@@ -67,7 +67,7 @@ export async function meiliSuggest(params: {
   query: string;
   region?: string | null;
   limit?: number;
-}): Promise<IbizSuggestResponse> {
+}): Promise<BiznesSuggestResponse> {
   const index = getCompaniesIndex();
 
   const filter: string[] = [];
@@ -84,12 +84,12 @@ export async function meiliSuggest(params: {
     ],
   });
 
-  const suggestions: IbizSuggestResponse["suggestions"] = result.hits.map(hit => ({
+  const suggestions: BiznesSuggestResponse["suggestions"] = result.hits.map(hit => ({
     type: "company" as const,
     id: hit.id,
     name: hit.name,
     url: `/company/${hit.id}`,
-    icon: hit.primary_category_slug ? IBIZ_CATEGORY_ICONS[hit.primary_category_slug] || null : null,
+    icon: hit.primary_category_slug ? BIZNES_CATEGORY_ICONS[hit.primary_category_slug] || null : null,
     subtitle: hit.address || hit.city || "",
   }));
 
