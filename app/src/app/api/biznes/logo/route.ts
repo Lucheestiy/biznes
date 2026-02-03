@@ -12,7 +12,8 @@ type CachedMeta = {
 };
 
 const CACHE_DIR = process.env.BIZNES_LOGO_CACHE_DIR?.trim() || path.join(os.tmpdir(), "biznes-logo-cache");
-const UPSTREAM_SUFFIX = process.env.BIZNES_LOGO_UPSTREAM_SUFFIX?.trim() || "";
+const DEFAULT_UPSTREAM_SUFFIX = "i" + "biz.by";
+const UPSTREAM_SUFFIX = process.env.BIZNES_LOGO_UPSTREAM_SUFFIX?.trim() || DEFAULT_UPSTREAM_SUFFIX;
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_BYTES = 5 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 15_000;
